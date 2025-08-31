@@ -881,10 +881,12 @@ async function buildOverlayMain() {
       try { console.groupCollapsed(`${name}: External template payload`); } catch (_) {}
       try { console.log('Keys:', Object.keys(data||{})); } catch (_) {}
       const c = data.coords || {};
-      let tx = toNum(c.tx ?? c.tileX ?? c.TlX ?? c.position_x ?? c.tile ?? c.x);
-      let ty = toNum(c.ty ?? c.tileY ?? c.TlY ?? c.position_y ?? c.row ?? c.y);
-      let px = toNum((c.px ?? c.PxX ?? c.pixelX ?? c.offset_x ?? 0));
-      let py = toNum((c.py ?? c.PxY ?? c.pixelY ?? c.offset_y ?? 0));
+      // Accept aliases and also consider top-level fallbacks if coords object misses fields
+      let tx = toNum(c.tx ?? c.tileX ?? c.TlX ?? c.position_x ?? c.tile ?? c.x ?? data.tx ?? data.tileX ?? data.x);
+      let ty = toNum(c.ty ?? c.tileY ?? c.TlY ?? c.position_y ?? c.row ?? c.y ?? data.ty ?? data.tileY ?? data.y);
+      let px = toNum((c.px ?? c.PxX ?? c.pixelX ?? c.offset_x ?? data.px ?? data.PxX ?? data.pixelX ?? data.offset_x ?? 0));
+      let py = toNum((c.py ?? c.PxY ?? c.pixelY ?? c.offset_y ?? data.py ?? data.PxY ?? data.pixelY ?? data.offset_y ?? 0));
+      try { console.log('Blue Marble: Parsed external template coords', { raw: c, tx, ty, px, py, types: { tx: typeof tx, ty: typeof ty, px: typeof px, py: typeof py } }); } catch (_) {}
       // Fallback parsing if needed
       if (!Number.isFinite(tx) || !Number.isFinite(ty)) {
         try {
