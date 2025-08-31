@@ -201,9 +201,17 @@ div:has(> #bm-button-teleport) {
   gap: 1ch;
 }
 
-/* The template file upload button */
+/* Layout for the Upload Template row (button + clipboard icon) */
+div:has(> #bm-input-file-template) {
+  display: flex;
+  align-items: center;
+  gap: 0.5ch;
+}
+
+/* The template file upload button should flex while leaving space for the icon */
 div:has(> #bm-input-file-template) > button {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

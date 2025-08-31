@@ -547,7 +547,7 @@ function buildOverlayMain() {
           input.addEventListener('change', handler);
         }).buildElement()
         // Paste coordinates from clipboard (small paper icon) — placed to the right of the four inputs
-        .addButton({'id': 'bm-button-paste-coords', 'className': 'bm-help', 'title': 'Paste coordinates from clipboard',
+        .addButton({'id': 'bm-button-paste-coords', 'className': 'bm-help', 'title': 'Paste coordinates from clipboard', 'style': 'margin-left: 0.5ch;',
                     'innerHTML': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" aria-hidden="true"><path fill="white" d="M6 2h8a2 2 0 0 1 2 2v2h-2V4H6v2H4V4a2 2 0 0 1 2-2zm-2 6h12v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8zm3 3v2h6v-2H7z"/></svg>'},
           (instance, button) => {
             button.onclick = async () => {
@@ -610,7 +610,73 @@ function buildOverlayMain() {
         .buildElement()
         .addDiv({'id': 'bm-colorfilter-list'}).buildElement()
       .buildElement()
-      .addInputFile({'id': 'bm-input-file-template', 'textContent': 'Upload Template', 'accept': 'image/png, image/jpeg, image/webp, image/bmp, image/gif'}).buildElement()
+      .addInputFile({'id': 'bm-input-file-template', 'textContent': 'Upload Template', 'accept': 'image/png, image/jpeg, image/webp, image/bmp, image/gif'},
+        (instance, container, input, uploadButton) => {
+          try {
+            // Add a small clipboard icon button next to the upload button
+            const pasteBtn = document.createElement('button');
+            pasteBtn.id = 'bm-button-paste-image';
+            pasteBtn.className = 'bm-help';
+            pasteBtn.title = 'Paste image template from clipboard';
+            pasteBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" aria-hidden="true"><path fill="white" d="M6 2h8a2 2 0 0 1 2 2v2h-2V4H6v2H4V4a2 2 0 0 1 2-2zm-2 6h12v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8zm3 3v2h6v-2H7z"/></svg>';
+
+            // Ensure the container behaves as a row with spacing (CSS also sets this)
+            container.style.display = 'flex';
+            container.style.alignItems = 'center';
+            container.style.gap = '0.5ch';
+            // Let the upload button flex to fill remaining space
+            uploadButton.style.flex = '1 1 auto';
+            uploadButton.style.minWidth = '0';
+
+            pasteBtn.addEventListener('click', async () => {
+              try {
+                // 1) Read coordinates from inputs (require valid coords)
+                const ix = document.querySelector('#bm-input-tx');
+                const iy = document.querySelector('#bm-input-ty');
+                const ipx = document.querySelector('#bm-input-px');
+                const ipy = document.querySelector('#bm-input-py');
+                if (!ix?.value || !iy?.value || !ipx?.value || !ipy?.value) {
+                  instance.handleDisplayError('Fill coordinates first (use the pin or clipboard icon).');
+                  return;
+                }
+                const tx = Number(ix.value); const ty = Number(iy.value); const px = Number(ipx.value); const py = Number(ipy.value);
+
+                // 2) Read image from clipboard
+                let blob = null; let fileName = 'Clipboard';
+                try {
+                  const items = await navigator.clipboard.read();
+                  for (const item of items) {
+                    for (const type of item.types) {
+                      if (type.startsWith('image/')) {
+                        blob = await item.getType(type);
+                        try {
+                          const ext = type.split('/')[1] || 'png';
+                          fileName = `Clipboard.${ext}`;
+                        } catch (_) {}
+                        break;
+                      }
+                    }
+                    if (blob) break;
+                  }
+                } catch (_) {}
+
+                if (!blob) {
+                  instance.handleDisplayError('No image found in clipboard. Copy an image and try again.');
+                  return;
+                }
+
+                // 3) Create the template
+                templateManager.createTemplate(blob, fileName.replace(/\.[^/.]+$/, ''), [tx, ty, px, py]);
+                instance.handleDisplayStatus('Pasted template from clipboard!');
+              } catch (e) {
+                instance.handleDisplayError(`Failed to paste image template: ${e?.message || e}`);
+              }
+            });
+
+            container.appendChild(pasteBtn);
+          } catch (_) {}
+        }
+      ).buildElement()
       .addDiv({'id': 'bm-contain-buttons-template'})
         .addButton({'id': 'bm-button-enable', 'textContent': 'Enable'}, (instance, button) => {
           button.onclick = () => {
@@ -650,53 +716,6 @@ function buildOverlayMain() {
             instance.apiManager?.templateManager?.setTemplatesShouldBeDrawn(false);
             instance.handleDisplayStatus(`Disabled templates!`);
           }
-        }).buildElement()
-        // Paste an image template from clipboard (below)
-        .addButton({'id': 'bm-button-paste-image', 'textContent': 'Paste Image Template'}, (instance, button) => {
-          button.onclick = async () => {
-            try {
-              // 1) Read coordinates from inputs (require valid coords)
-              const ix = document.querySelector('#bm-input-tx');
-              const iy = document.querySelector('#bm-input-ty');
-              const ipx = document.querySelector('#bm-input-px');
-              const ipy = document.querySelector('#bm-input-py');
-              if (!ix?.value || !iy?.value || !ipx?.value || !ipy?.value) {
-                instance.handleDisplayError('Fill coordinates first (use the pin or clipboard icon).');
-                return;
-              }
-              const tx = Number(ix.value); const ty = Number(iy.value); const px = Number(ipx.value); const py = Number(ipy.value);
-
-              // 2) Read image from clipboard
-              let blob = null; let fileName = 'Clipboard';
-              try {
-                const items = await navigator.clipboard.read();
-                for (const item of items) {
-                  for (const type of item.types) {
-                    if (type.startsWith('image/')) {
-                      blob = await item.getType(type);
-                      try {
-                        const ext = type.split('/')[1] || 'png';
-                        fileName = `Clipboard.${ext}`;
-                      } catch (_) {}
-                      break;
-                    }
-                  }
-                  if (blob) break;
-                }
-              } catch (_) {}
-
-              if (!blob) {
-                instance.handleDisplayError('No image found in clipboard. Copy an image and try again.');
-                return;
-              }
-
-              // 3) Create the template
-              templateManager.createTemplate(blob, fileName.replace(/\.[^/.]+$/, ''), [tx, ty, px, py]);
-              instance.handleDisplayStatus('Pasted template from clipboard!');
-            } catch (e) {
-              instance.handleDisplayError(`Failed to paste image template: ${e?.message || e}`);
-            }
-          };
         }).buildElement()
       .buildElement()
       .addTextarea({'id': overlayMain.outputStatusId, 'placeholder': `Status: Sleeping...\nVersion: ${version}`, 'readOnly': true}).buildElement()
