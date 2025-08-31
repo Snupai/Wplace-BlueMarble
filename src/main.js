@@ -281,7 +281,79 @@ function buildOverlayMain() {
            * 
            * @param {Event} event - The click event object (implicit)
            */
+          // Minimized drag support state
+          let miniIsDragging = false;
+          let miniStartX = 0, miniStartY = 0;
+          let miniOffsetX = 0, miniOffsetY = 0;
+          let miniMoveHandler = null, miniUpHandler = null, miniDownHandler = null;
+
+          const attachMiniDrag = (overlayEl) => {
+            if (!overlayEl) return;
+            const getPoint = (evt) => (evt.touches?.[0]) || evt;
+            const onDown = (evt) => {
+              if (!isMinimized) return;
+              const p = getPoint(evt);
+              miniIsDragging = true;
+              const rect = overlayEl.getBoundingClientRect();
+              miniOffsetX = p.clientX - rect.left;
+              miniOffsetY = p.clientY - rect.top;
+              miniStartX = rect.left;
+              miniStartY = rect.top;
+              document.addEventListener('mousemove', onMove, { passive: true });
+              document.addEventListener('mouseup', onUp, { passive: true });
+              document.addEventListener('touchmove', onMove, { passive: false });
+              document.addEventListener('touchend', onUp, { passive: true });
+              overlayEl.style.transition = 'none';
+            };
+            const onMove = (evt) => {
+              if (!miniIsDragging) return;
+              const p = getPoint(evt);
+              const nx = p.clientX - miniOffsetX;
+              const ny = p.clientY - miniOffsetY;
+              overlayEl.style.transform = `translate(${nx}px, ${ny}px)`;
+              overlayEl.style.left = '0px';
+              overlayEl.style.top = '0px';
+              evt.preventDefault?.();
+            };
+            const onUp = (evt) => {
+              if (!miniIsDragging) return;
+              miniIsDragging = false;
+              document.removeEventListener('mousemove', onMove);
+              document.removeEventListener('mouseup', onUp);
+              document.removeEventListener('touchmove', onMove);
+              document.removeEventListener('touchend', onUp);
+              // mark that a drag just occurred to prevent immediate toggle
+              try {
+                const rect = overlayEl.getBoundingClientRect();
+                const dx = Math.abs(rect.left - miniStartX);
+                const dy = Math.abs(rect.top - miniStartY);
+                if (dx > 3 || dy > 3) {
+                  overlayEl.dataset.justDragged = '1';
+                  setTimeout(() => { overlayEl && (overlayEl.dataset.justDragged = ''); }, 200);
+                }
+              } catch (_) {}
+              // restore transition
+              overlayEl.style.transition = '';
+            };
+            miniDownHandler = onDown;
+            miniMoveHandler = onMove;
+            miniUpHandler = onUp;
+            overlayEl.addEventListener('mousedown', onDown);
+            overlayEl.addEventListener('touchstart', onDown, { passive: false });
+          };
+          const detachMiniDrag = (overlayEl) => {
+            if (!overlayEl) return;
+            if (miniDownHandler) overlayEl.removeEventListener('mousedown', miniDownHandler);
+            if (miniDownHandler) overlayEl.removeEventListener('touchstart', miniDownHandler);
+            document.removeEventListener('mousemove', miniMoveHandler || (()=>{}));
+            document.removeEventListener('mouseup', miniUpHandler || (()=>{}));
+            document.removeEventListener('touchmove', miniMoveHandler || (()=>{}));
+            document.removeEventListener('touchend', miniUpHandler || (()=>{}));
+          };
+
           img.addEventListener('click', () => {
+            const overlayEl = document.querySelector('#bm-overlay');
+            if (overlayEl?.dataset?.justDragged === '1') { overlayEl.dataset.justDragged = ''; return; }
             isMinimized = !isMinimized; // Toggle the current state
 
             const overlay = document.querySelector('#bm-overlay');
@@ -377,7 +449,7 @@ function buildOverlayMain() {
               header.style.margin = '0';
               header.style.marginBottom = '0';
               
-              // Hide drag bar in minimized state for a clean round icon
+              // Hide drag bar in minimized state for a clean round icon, enable drag on the circle itself
               if (dragBar) {
                 dragBar.style.display = 'none';
                 dragBar.style.marginBottom = '0';
@@ -391,6 +463,8 @@ function buildOverlayMain() {
               overlay.style.padding = '6px';
               overlay.style.borderRadius = '50%';
               img.style.height = '42px';
+              // attach minimized drag handlers
+              attachMiniDrag(overlay);
             } else {
               // ==================== MAXIMIZED STATE RESTORATION ====================
               // In maximized state, we restore all elements to their default functionality
@@ -460,6 +534,8 @@ function buildOverlayMain() {
               overlay.style.minWidth = '';
               overlay.style.borderRadius = '';
               img.style.height = '';
+              // detach minimized drag handlers
+              detachMiniDrag(overlay);
             }
             
             // ==================== ACCESSIBILITY AND USER FEEDBACK ====================
@@ -751,6 +827,63 @@ function buildOverlayMain() {
       .buildElement()
     .buildElement()
   .buildOverlay(document.body);
+
+  // ------- External integration: accept messages from other sites -------
+  window.addEventListener('message', async (event) => {
+    try {
+      const data = event?.data || {};
+      if (!data || data.source !== 'blue-marble-external') return;
+
+      // Optional: restrict by origin if you have a known host
+      // if (event.origin !== 'https://your-approved-host.example') return;
+
+      // Handle coordinate injection
+      if (data.type === 'coords' || (data.coords && data.type !== 'template')) {
+        const [tx, ty, px, py] = [data.coords?.tx, data.coords?.ty, data.coords?.px, data.coords?.py].map(n => Number(n));
+        if ([tx, ty, px, py].every(Number.isFinite)) {
+          overlayMain.updateInnerHTML('bm-input-tx', String(tx));
+          overlayMain.updateInnerHTML('bm-input-ty', String(ty));
+          overlayMain.updateInnerHTML('bm-input-px', String(px));
+          overlayMain.updateInnerHTML('bm-input-py', String(py));
+          try { GM.setValue('bmCoords', JSON.stringify({tx,ty,px,py})); } catch (_) {}
+          overlayMain.handleDisplayStatus('Received coordinates from external site');
+        } else {
+          overlayMain.handleDisplayError('External coords malformed');
+        }
+      }
+
+      // Handle template (image + coords)
+      if (data.type === 'template') {
+        const [tx, ty, px, py] = [data.coords?.tx, data.coords?.ty, data.coords?.px, data.coords?.py].map(n => Number(n));
+        if (![tx, ty, px, py].every(Number.isFinite)) {
+          overlayMain.handleDisplayError('External template missing valid coordinates');
+          return;
+        }
+
+        let blob = null, name = data.name || 'ExternalTemplate';
+        if (data.blob instanceof Blob) {
+          blob = data.blob;
+        } else if (data.dataUrl && typeof data.dataUrl === 'string') {
+          try { blob = await (await fetch(data.dataUrl)).blob(); } catch (e) {}
+        } else if (data.url && typeof data.url === 'string') {
+          // Best-effort fetch (requires CORS on the host). For stricter control, switch to GM.xmlHttpRequest and add grant.
+          try { blob = await (await fetch(data.url, { mode: 'cors' })).blob(); } catch (e) {}
+        }
+
+        if (!blob) {
+          overlayMain.handleDisplayError('External template image unavailable (CORS/format)');
+          return;
+        }
+        templateManager.createTemplate(blob, name, [tx, ty, px, py]);
+        overlayMain.handleDisplayStatus('Received template from external site');
+      }
+    } catch (e) {
+      try { console.warn('Blue Marble: external message error', e); } catch (_) {}
+    }
+  });
+
+  // Convenience: allow manual injection via DevTools
+  window.BM_receiveExternal = (payload) => window.postMessage(Object.assign({ source: 'blue-marble-external' }, payload), '*');
 
   // ------- Helper: Build the color filter list -------
   window.buildColorFilterList = function buildColorFilterList() {
