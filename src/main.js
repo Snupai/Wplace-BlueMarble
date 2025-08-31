@@ -914,14 +914,33 @@ async function buildOverlayMain() {
       }
 
       let blob = null, name = data.name || 'ExternalTemplate';
-      const aliasDataUrl = (data.dataUrl || data.dataURL || '');
-      const aliasUrl = (data.url || data.imageUrl || data.href || data.src || '');
+      // Try many common aliases and simple nestings for data URLs and URLs
+      const pickFirstString = (...vals) => vals.find(v => typeof v === 'string' && v);
+      const aliasDataUrl = pickFirstString(
+        data.dataUrl, data.dataURL, data.dataUri, data.dataURI,
+        data.imageDataUrl, data.imageDataURL, data.imageDataUri, data.imageDataURI,
+        data.image64, data.base64, data.b64,
+        // nested common containers
+        data.data?.dataUrl, data.data?.dataURL, data.data?.dataUri, data.data?.dataURI,
+        data.image?.dataUrl, data.image?.dataURL, data.image?.dataUri, data.image?.dataURI,
+        data.img?.dataUrl, data.img?.dataURL, data.img?.dataUri, data.img?.dataURI,
+        data.template?.dataUrl, data.template?.dataURL,
+        // direct string that itself is a data URL
+        (typeof data.data === 'string' && data.data),
+        (typeof data.image === 'string' && data.image),
+        (typeof data.img === 'string' && data.img),
+        (typeof data.template === 'string' && data.template)
+      ) || '';
+      const aliasUrl = pickFirstString(
+        data.url, data.imageUrl, data.href, data.src,
+        data.data?.url, data.image?.url, data.img?.url, data.template?.url
+      ) || '';
       const aliasWidth = Number(data.width);
       const aliasHeight = Number(data.height);
       const aliasPixels = data.pixelData;
       try { console.log('Image sources:', { hasDataUrl: !!aliasDataUrl, aliasUrl, hasPixels: !!aliasPixels, width: aliasWidth, height: aliasHeight }); } catch (_) {}
 
-      // Helper: robust Data URL -> Blob (avoids CORS/fetch issues)
+      // Helper: robust Data URL -> Blob (tolerates params order, URL-safe base64, whitespace, missing padding)
       const blobFromDataUrl = (du) => {
         try {
           const s = (typeof du === 'string') ? du.trim() : '';
@@ -929,12 +948,25 @@ async function buildOverlayMain() {
           const comma = s.indexOf(',');
           if (comma < 0) return null;
           const meta = s.slice(0, comma);
-          const body = s.slice(comma + 1);
-          const m = /^data:([^;]*)(;base64)?/i.exec(meta);
-          const mime = (m && m[1]) ? m[1] : 'application/octet-stream';
-          const isB64 = !!(m && m[2]);
+          let body = s.slice(comma + 1).replace(/\s+/g, ''); // strip whitespace/newlines
+          // Extract MIME from the first part after data:
+          // Accept extra parameters like ;charset=...;name=...;base64 in any order
+          const metaNoPrefix = meta.slice(5); // remove 'data:'
+          const semi = metaNoPrefix.indexOf(';');
+          const mime = (semi >= 0 ? metaNoPrefix.slice(0, semi) : metaNoPrefix) || 'application/octet-stream';
+          const isB64 = /;base64(?:;|$)/i.test(meta);
           if (isB64) {
-            const bin = atob(body);
+            // Convert URL-safe base64 -> standard and fix padding
+            body = body.replace(/-/g, '+').replace(/_/g, '/');
+            const pad = body.length % 4;
+            if (pad === 2) body += '=='; else if (pad === 3) body += '='; else if (pad === 1) { /* invalid length */ }
+            let bin;
+            try {
+              bin = atob(body);
+            } catch (e) {
+              // Sometimes body might be percent-encoded despite base64 flag
+              try { bin = atob(decodeURIComponent(body)); } catch (_) { return null; }
+            }
             const len = bin.length;
             const arr = new Uint8Array(len);
             for (let i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
@@ -961,6 +993,24 @@ async function buildOverlayMain() {
           } catch (e) { try { console.warn('Fetch dataUrl failed', e); } catch (_) {} }
         }
         if (blob) { try { console.log('dataUrl -> blob OK', { type: blob.type, size: blob.size }); } catch (_) {} }
+      }
+      // Absolute last resort: scan for any string field that looks like a data URL
+      if (!blob) {
+        try {
+          const crawl = (obj) => {
+            if (!obj || typeof obj !== 'object') return null;
+            for (const v of Object.values(obj)) {
+              if (typeof v === 'string' && /^data:/i.test(v)) return v;
+              if (v && typeof v === 'object') { const r = crawl(v); if (r) return r; }
+            }
+            return null;
+          };
+          const anyDU = crawl(data);
+          if (anyDU) {
+            try { console.log('Found nested data URL'); } catch (_) {}
+            blob = blobFromDataUrl(anyDU);
+          }
+        } catch (_) {}
       }
       // Remote URL: try Tampermonkey XHR first (bypasses CORS), then fetch as fallback
       if (!blob && typeof aliasUrl === 'string' && aliasUrl) {
@@ -1031,9 +1081,16 @@ async function buildOverlayMain() {
         try { console.groupEnd(); } catch (_) {}
         return;
       }
-      templateManager.createTemplate(blob, name, [tx, ty, Number.isFinite(px)?px:0, Number.isFinite(py)?py:0]);
-      try { GM.setValue('bmCoords', JSON.stringify({ tx, ty, px: Number.isFinite(px)?px:0, py: Number.isFinite(py)?py:0 })); } catch (_) {}
-      overlayMain.handleDisplayStatus('Received template from external site');
+      try {
+        templateManager.createTemplate(blob, name, [tx, ty, Number.isFinite(px)?px:0, Number.isFinite(py)?py:0]);
+        try { GM.setValue('bmCoords', JSON.stringify({ tx, ty, px: Number.isFinite(px)?px:0, py: Number.isFinite(py)?py:0 })); } catch (_) {}
+        overlayMain.handleDisplayStatus('Received template from external site');
+      } catch (e) {
+        try { console.error('Blue Marble: createTemplate failed', e); } catch (_) {}
+        overlayMain.handleDisplayError(`Template creation failed: ${e?.message || e}`);
+        try { console.groupEnd(); } catch (_) {}
+        return;
+      }
       try { console.groupEnd(); } catch (_) {}
     }
   };

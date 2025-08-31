@@ -93,7 +93,28 @@ export default class Template {
     console.log('Template coordinates:', this.coords);
 
     const shreadSize = 3; // Scale image factor for pixel art enhancement (must be odd)
-    const bitmap = await createImageBitmap(this.file); // Create efficient bitmap from uploaded file
+    // Create efficient bitmap from uploaded file with robust fallback
+    let bitmap;
+    try {
+      bitmap = await createImageBitmap(this.file);
+    } catch (e) {
+      try {
+        // Fallback: decode via HTMLImageElement and a canvas
+        const url = URL.createObjectURL(this.file);
+        const img = await new Promise((resolve, reject) => {
+          const im = new Image();
+          im.onload = () => resolve(im);
+          im.onerror = reject;
+          im.src = url;
+        });
+        try { URL.revokeObjectURL(url); } catch (_) {}
+        // Use the image directly as CanvasImageSource
+        bitmap = img;
+      } catch (fallbackErr) {
+        console.warn('Failed to create bitmap from blob', e, fallbackErr);
+        throw fallbackErr;
+      }
+    }
     const imageWidth = bitmap.width;
     const imageHeight = bitmap.height;
     
@@ -105,10 +126,25 @@ export default class Template {
     // Store pixel count in instance property for access by template manager and UI components
     this.pixelCount = totalPixels;
 
+    // Helper to obtain a canvas across environments (OffscreenCanvas or HTMLCanvas)
+    const makeCanvas = (w, h) => {
+      try {
+        if (typeof OffscreenCanvas !== 'undefined') {
+          const c = new OffscreenCanvas(w, h);
+          // Assign width/height explicitly in case caller expects those properties
+          try { c.width = w; c.height = h; } catch (_) {}
+          return c;
+        }
+      } catch (_) {}
+      const el = document.createElement('canvas');
+      el.width = w; el.height = h;
+      return el;
+    };
+
     // ==================== REQUIRED/DEFACE PIXEL COUNTING ====================
     // Build a 1× scale canvas to inspect original pixels and count required vs deface
     try {
-      const inspectCanvas = new OffscreenCanvas(imageWidth, imageHeight);
+      const inspectCanvas = makeCanvas(imageWidth, imageHeight);
       const inspectCtx = inspectCanvas.getContext('2d', { willReadFrequently: true });
       inspectCtx.imageSmoothingEnabled = false;
       inspectCtx.clearRect(0, 0, imageWidth, imageHeight);
@@ -153,7 +189,7 @@ export default class Template {
     const templateTiles = {}; // Holds the template tiles
     const templateTilesBuffers = {}; // Holds the buffers of the template tiles
 
-    const canvas = new OffscreenCanvas(this.tileSize, this.tileSize);
+    const canvas = makeCanvas(this.tileSize, this.tileSize);
     const context = canvas.getContext('2d', { willReadFrequently: true });
 
     // For every tile...
