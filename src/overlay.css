@@ -2,12 +2,13 @@
 
 /* The entire overlay */
 #bm-overlay {
-  position: fixed;
+  position: fixed !important;
   background-color: rgba(21, 48, 99, 0.9);
   color: white;
   padding: 10px;
   border-radius: 8px;
-  z-index: 9000;
+  /* Use a very high z-index to stay above site UI/iframes */
+  z-index: 2147483647 !important;
   transition: all 0.3s ease, transform 0s;
   max-width: 300px;
   width: auto;
