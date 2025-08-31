@@ -948,9 +948,35 @@ async function buildOverlayMain() {
           try { blob = await (await fetch(data.dataUrl)).blob(); } catch (_) {}
         }
       }
-      // Remote URL: best-effort fetch (CORS required)
+      // Remote URL: try Tampermonkey XHR first (bypasses CORS), then fetch as fallback
       if (!blob && data.url && typeof data.url === 'string') {
-        try { blob = await (await fetch(data.url, { mode: 'cors' })).blob(); } catch (_) {}
+        const fetchViaGM = (u) => new Promise((resolve, reject) => {
+          try {
+            const GMxhr = (typeof GM !== 'undefined' && GM?.xmlHttpRequest) || (typeof GM_xmlhttpRequest !== 'undefined' && GM_xmlhttpRequest);
+            if (!GMxhr) { reject(new Error('GM XHR unavailable')); return; }
+            GMxhr({
+              method: 'GET',
+              url: u,
+              responseType: 'arraybuffer',
+              onload: (resp) => {
+                try {
+                  const ab = resp?.response;
+                  const ctMatch = /content-type:\s*([^\r\n]+)/i.exec(resp?.responseHeaders || '');
+                  const mime = (ctMatch && ctMatch[1]) ? ctMatch[1].trim() : 'application/octet-stream';
+                  if (ab) { resolve(new Blob([ab], { type: mime })); return; }
+                  if (resp?.responseText) { resolve(new Blob([resp.responseText], { type: mime })); return; }
+                  reject(new Error('Empty response'));
+                } catch (e) { reject(e); }
+              },
+              onerror: (e) => reject(e)
+            });
+          } catch (e) { reject(e); }
+        });
+
+        try { blob = await fetchViaGM(data.url); } catch (_) {}
+        if (!blob) {
+          try { blob = await (await fetch(data.url, { mode: 'cors' })).blob(); } catch (_) {}
+        }
       }
 
       if (!blob) {

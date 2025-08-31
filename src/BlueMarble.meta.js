@@ -15,6 +15,9 @@
 // @grant        GM_addStyle
 // @grant        GM.setValue
 // @grant        GM_getValue
+// @grant        GM_xmlhttpRequest
+// @grant        GM.xmlHttpRequest
+// @connect      *
 // @resource     CSS-BM-File https://raw.githubusercontent.com/Snupai/Wplace-BlueMarble/c280cef0983e7dc5ce4a7fb256beb85d838ebd4d/dist/BlueMarble.user.css
 // ==/UserScript==
 
