@@ -858,6 +858,8 @@ async function buildOverlayMain() {
   // ------- External integration: accept messages from other sites -------
   // Queue messages until overlay/templateManager is ready
   window.BM_EXTERNAL_QUEUE = window.BM_EXTERNAL_QUEUE || [];
+  // Debug flag for external integration; toggle via DevTools: window.BM_DEBUG_EXT = true
+  const DEBUG_EXT = !!(window && window.BM_DEBUG_EXT);
 
   // Unified coordinate parser: accepts arrays, objects, strings, and aliases; omits non-finite fields
   const parseCoords = (input) => {
@@ -883,6 +885,7 @@ async function buildOverlayMain() {
       if (Number.isFinite(a[1])) out.ty = a[1];
       if (Number.isFinite(a[2])) out.px = a[2];
       if (Number.isFinite(a[3])) out.py = a[3];
+      try { if (DEBUG_EXT) console.log('BM parseCoords (array) ->', { input: coords, out }); } catch (_) {}
       return out;
     }
     const labeled = parseLabeledString(coords?.position || obj.position || '');
@@ -896,14 +899,17 @@ async function buildOverlayMain() {
     if (Number.isFinite(ty)) out.ty = ty;
     if (Number.isFinite(px)) out.px = px;
     if (Number.isFinite(py)) out.py = py;
+    try { if (DEBUG_EXT) console.log('BM parseCoords (object) ->', { input, out }); } catch (_) {}
     return out;
   };
 
   const processExternal = async (payload) => {
     const data = payload;
+    try { if (DEBUG_EXT) console.log('BM processExternal()', { type: data?.type, keys: Object.keys(data||{}), payload: data }); } catch (_) {}
     // Handle coordinate injection (supports multiple field names)
     if (data.type === 'coords' || (data.coords && data.type !== 'template')) {
       const { tx, ty, px, py } = parseCoords(data);
+      try { if (DEBUG_EXT) console.log('BM coords handler parsed:', { tx, ty, px, py }); } catch (_) {}
       if ([tx, ty].every(Number.isFinite)) {
         overlayMain.updateInnerHTML('bm-input-tx', String(tx));
         overlayMain.updateInnerHTML('bm-input-ty', String(ty));
@@ -1146,6 +1152,14 @@ async function buildOverlayMain() {
     try {
       const data = event?.data || {};
       if (!data || data.source !== 'blue-marble-external') return;
+      try {
+        if (DEBUG_EXT) {
+          console.groupCollapsed('Blue Marble: external message received');
+          console.log('Payload keys:', Object.keys(data||{}));
+          console.log('Payload:', data);
+          console.groupEnd();
+        }
+      } catch (_) {}
       // If overlay/templateManager not ready yet, queue it
       if (!overlayMain || !templateManager) {
         window.BM_EXTERNAL_QUEUE.push(data);
