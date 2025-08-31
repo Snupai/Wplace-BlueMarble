@@ -376,11 +376,20 @@ function buildOverlayMain() {
               header.style.margin = '0';
               header.style.marginBottom = '0';
               
-              // Ensure drag bar remains visible and properly spaced
+              // Hide drag bar in minimized state for a clean round icon
               if (dragBar) {
-                dragBar.style.display = '';
-                dragBar.style.marginBottom = '0.25em';
+                dragBar.style.display = 'none';
+                dragBar.style.marginBottom = '0';
               }
+
+              // Small round icon appearance
+              overlay.style.width = '56px';
+              overlay.style.height = '56px';
+              overlay.style.maxWidth = '56px';
+              overlay.style.minWidth = '56px';
+              overlay.style.padding = '6px';
+              overlay.style.borderRadius = '50%';
+              img.style.height = '42px';
             } else {
               // ==================== MAXIMIZED STATE RESTORATION ====================
               // In maximized state, we restore all elements to their default functionality
@@ -438,6 +447,7 @@ function buildOverlayMain() {
               
               // Reset drag bar spacing
               if (dragBar) {
+                dragBar.style.display = '';
                 dragBar.style.marginBottom = '0.5em';
               }
               
@@ -445,6 +455,10 @@ function buildOverlayMain() {
               // This ensures the overlay can adapt to content changes
               overlay.style.width = '';
               overlay.style.height = '';
+              overlay.style.maxWidth = '';
+              overlay.style.minWidth = '';
+              overlay.style.borderRadius = '';
+              img.style.height = '';
             }
             
             // ==================== ACCESSIBILITY AND USER FEEDBACK ====================
@@ -496,7 +510,43 @@ function buildOverlayMain() {
             }
           }
         ).buildElement()
-        // Paste coordinates from clipboard (small paper icon)
+        .addInput({'type': 'number', 'id': 'bm-input-tx', 'placeholder': 'Tl X', 'min': 0, 'max': 2047, 'step': 1, 'required': true, 'value': (savedCoords.tx ?? '')}, (instance, input) => {
+          //if a paste happens on tx, split and format it into other coordinates if possible
+          input.addEventListener("paste", (event) => {
+            let splitText = (event.clipboardData || window.clipboardData).getData("text").split(" ").filter(n => n).map(Number).filter(n => !isNaN(n)); //split and filter all Non Numbers
+
+            if (splitText.length !== 4 ) { // If we don't have 4 clean coordinates, end the function.
+              return;
+            }
+
+            let coords = selectAllCoordinateInputs(document); 
+
+            for (let i = 0; i < coords.length; i++) { 
+              coords[i].value = splitText[i]; //add the split vales
+            }
+
+            event.preventDefault(); //prevent the pasting of the original paste that would overide the split value
+          })
+          const handler = () => persistCoords();
+          input.addEventListener('input', handler);
+          input.addEventListener('change', handler);
+        }).buildElement()
+        .addInput({'type': 'number', 'id': 'bm-input-ty', 'placeholder': 'Tl Y', 'min': 0, 'max': 2047, 'step': 1, 'required': true, 'value': (savedCoords.ty ?? '')}, (instance, input) => {
+          const handler = () => persistCoords();
+          input.addEventListener('input', handler);
+          input.addEventListener('change', handler);
+        }).buildElement()
+        .addInput({'type': 'number', 'id': 'bm-input-px', 'placeholder': 'Px X', 'min': 0, 'max': 2047, 'step': 1, 'required': true, 'value': (savedCoords.px ?? '')}, (instance, input) => {
+          const handler = () => persistCoords();
+          input.addEventListener('input', handler);
+          input.addEventListener('change', handler);
+        }).buildElement()
+        .addInput({'type': 'number', 'id': 'bm-input-py', 'placeholder': 'Px Y', 'min': 0, 'max': 2047, 'step': 1, 'required': true, 'value': (savedCoords.py ?? '')}, (instance, input) => {
+          const handler = () => persistCoords();
+          input.addEventListener('input', handler);
+          input.addEventListener('change', handler);
+        }).buildElement()
+        // Paste coordinates from clipboard (small paper icon) — placed to the right of the four inputs
         .addButton({'id': 'bm-button-paste-coords', 'className': 'bm-help', 'title': 'Paste coordinates from clipboard',
                     'innerHTML': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" aria-hidden="true"><path fill="white" d="M6 2h8a2 2 0 0 1 2 2v2h-2V4H6v2H4V4a2 2 0 0 1 2-2zm-2 6h12v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8zm3 3v2h6v-2H7z"/></svg>'},
           (instance, button) => {
@@ -535,42 +585,6 @@ function buildOverlayMain() {
             };
           }
         ).buildElement()
-        .addInput({'type': 'number', 'id': 'bm-input-tx', 'placeholder': 'Tl X', 'min': 0, 'max': 2047, 'step': 1, 'required': true, 'value': (savedCoords.tx ?? '')}, (instance, input) => {
-          //if a paste happens on tx, split and format it into other coordinates if possible
-          input.addEventListener("paste", (event) => {
-            let splitText = (event.clipboardData || window.clipboardData).getData("text").split(" ").filter(n => n).map(Number).filter(n => !isNaN(n)); //split and filter all Non Numbers
-
-            if (splitText.length !== 4 ) { // If we don't have 4 clean coordinates, end the function.
-              return;
-            }
-
-            let coords = selectAllCoordinateInputs(document); 
-
-            for (let i = 0; i < coords.length; i++) { 
-              coords[i].value = splitText[i]; //add the split vales
-            }
-
-            event.preventDefault(); //prevent the pasting of the original paste that would overide the split value
-          })
-          const handler = () => persistCoords();
-          input.addEventListener('input', handler);
-          input.addEventListener('change', handler);
-        }).buildElement()
-        .addInput({'type': 'number', 'id': 'bm-input-ty', 'placeholder': 'Tl Y', 'min': 0, 'max': 2047, 'step': 1, 'required': true, 'value': (savedCoords.ty ?? '')}, (instance, input) => {
-          const handler = () => persistCoords();
-          input.addEventListener('input', handler);
-          input.addEventListener('change', handler);
-        }).buildElement()
-        .addInput({'type': 'number', 'id': 'bm-input-px', 'placeholder': 'Px X', 'min': 0, 'max': 2047, 'step': 1, 'required': true, 'value': (savedCoords.px ?? '')}, (instance, input) => {
-          const handler = () => persistCoords();
-          input.addEventListener('input', handler);
-          input.addEventListener('change', handler);
-        }).buildElement()
-        .addInput({'type': 'number', 'id': 'bm-input-py', 'placeholder': 'Px Y', 'min': 0, 'max': 2047, 'step': 1, 'required': true, 'value': (savedCoords.py ?? '')}, (instance, input) => {
-          const handler = () => persistCoords();
-          input.addEventListener('input', handler);
-          input.addEventListener('change', handler);
-        }).buildElement()
       .buildElement()
       // Color filter UI
       .addDiv({'id': 'bm-contain-colorfilter', 'style': 'max-height: 140px; overflow: auto; border: 1px solid rgba(255,255,255,0.1); padding: 4px; border-radius: 4px; display: none;'})
@@ -630,7 +644,14 @@ function buildOverlayMain() {
             instance.handleDisplayStatus(`Drew to canvas!`);
           }
         }).buildElement()
-        // Paste an image template from clipboard
+        // Move Disable button next to Create
+        .addButton({'id': 'bm-button-disable', 'textContent': 'Disable'}, (instance, button) => {
+          button.onclick = () => {
+            instance.apiManager?.templateManager?.setTemplatesShouldBeDrawn(false);
+            instance.handleDisplayStatus(`Disabled templates!`);
+          }
+        }).buildElement()
+        // Paste an image template from clipboard (below)
         .addButton({'id': 'bm-button-paste-image', 'textContent': 'Paste Image Template'}, (instance, button) => {
           button.onclick = async () => {
             try {
@@ -677,12 +698,6 @@ function buildOverlayMain() {
             }
           };
         }).buildElement()
-        .addButton({'id': 'bm-button-disable', 'textContent': 'Disable'}, (instance, button) => {
-          button.onclick = () => {
-            instance.apiManager?.templateManager?.setTemplatesShouldBeDrawn(false);
-            instance.handleDisplayStatus(`Disabled templates!`);
-          }
-        }).buildElement()
       .buildElement()
       .addTextarea({'id': overlayMain.outputStatusId, 'placeholder': `Status: Sleeping...\nVersion: ${version}`, 'readOnly': true}).buildElement()
       .addDiv({'id': 'bm-contain-buttons-action'})
@@ -703,7 +718,7 @@ function buildOverlayMain() {
             });
           }).buildElement()
         .buildElement()
-        .addSmall({'textContent': 'Made by SwingTheVine', 'style': 'margin-top: auto;'}).buildElement()
+        .addSmall({'textContent': 'Made by Snupai 🏳️‍🌈', 'style': 'margin-top: auto;'}).buildElement()
       .buildElement()
     .buildElement()
   .buildOverlay(document.body);
