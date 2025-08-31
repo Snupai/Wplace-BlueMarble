@@ -829,61 +829,86 @@ function buildOverlayMain() {
   .buildOverlay(document.body);
 
   // ------- External integration: accept messages from other sites -------
+  // Queue messages until overlay/templateManager is ready
+  window.BM_EXTERNAL_QUEUE = window.BM_EXTERNAL_QUEUE || [];
+  const processExternal = async (payload) => {
+    const data = payload;
+    // Handle coordinate injection (supports multiple field names)
+    if (data.type === 'coords' || (data.coords && data.type !== 'template')) {
+      const c = data.coords || {};
+      // Accept aliases: tx/tileX/TlX/position_x, ty/tileY/TlY/position_y, px/PxX, py/PxY
+      const tx = Number(c.tx ?? c.tileX ?? c.TlX ?? c.position_x ?? c.tile ?? c.x);
+      const ty = Number(c.ty ?? c.tileY ?? c.TlY ?? c.position_y ?? c.row ?? c.y);
+      const px = Number((c.px ?? c.PxX ?? c.pixelX ?? c.offset_x ?? 0));
+      const py = Number((c.py ?? c.PxY ?? c.pixelY ?? c.offset_y ?? 0));
+      if ([tx, ty].every(Number.isFinite)) {
+        overlayMain.updateInnerHTML('bm-input-tx', String(tx));
+        overlayMain.updateInnerHTML('bm-input-ty', String(ty));
+        overlayMain.updateInnerHTML('bm-input-px', Number.isFinite(px) ? String(px) : '0');
+        overlayMain.updateInnerHTML('bm-input-py', Number.isFinite(py) ? String(py) : '0');
+        try { GM.setValue('bmCoords', JSON.stringify({tx,ty,px: Number.isFinite(px)?px:0, py: Number.isFinite(py)?py:0})); } catch (_) {}
+        overlayMain.handleDisplayStatus('Received coordinates from external site');
+      } else {
+        overlayMain.handleDisplayError('External coords malformed');
+      }
+    }
+
+    // Handle template (image + coords)
+    if (data.type === 'template') {
+      const c = data.coords || {};
+      const tx = Number(c.tx ?? c.tileX ?? c.TlX ?? c.position_x ?? c.tile ?? c.x);
+      const ty = Number(c.ty ?? c.tileY ?? c.TlY ?? c.position_y ?? c.row ?? c.y);
+      const px = Number((c.px ?? c.PxX ?? c.pixelX ?? c.offset_x ?? 0));
+      const py = Number((c.py ?? c.PxY ?? c.pixelY ?? c.offset_y ?? 0));
+      if (![tx, ty].every(Number.isFinite)) {
+        overlayMain.handleDisplayError('External template missing valid coordinates');
+        return;
+      }
+
+      let blob = null, name = data.name || 'ExternalTemplate';
+      if (data.blob instanceof Blob) {
+        blob = data.blob;
+      } else if (data.dataUrl && typeof data.dataUrl === 'string') {
+        try { blob = await (await fetch(data.dataUrl)).blob(); } catch (e) {}
+      } else if (data.url && typeof data.url === 'string') {
+        try { blob = await (await fetch(data.url, { mode: 'cors' })).blob(); } catch (e) {}
+      }
+
+      if (!blob) {
+        overlayMain.handleDisplayError('External template image unavailable (CORS/format)');
+        return;
+      }
+      templateManager.createTemplate(blob, name, [tx, ty, Number.isFinite(px)?px:0, Number.isFinite(py)?py:0]);
+      overlayMain.handleDisplayStatus('Received template from external site');
+    }
+  };
+
   window.addEventListener('message', async (event) => {
     try {
       const data = event?.data || {};
       if (!data || data.source !== 'blue-marble-external') return;
-
-      // Optional: restrict by origin if you have a known host
-      // if (event.origin !== 'https://your-approved-host.example') return;
-
-      // Handle coordinate injection
-      if (data.type === 'coords' || (data.coords && data.type !== 'template')) {
-        const [tx, ty, px, py] = [data.coords?.tx, data.coords?.ty, data.coords?.px, data.coords?.py].map(n => Number(n));
-        if ([tx, ty, px, py].every(Number.isFinite)) {
-          overlayMain.updateInnerHTML('bm-input-tx', String(tx));
-          overlayMain.updateInnerHTML('bm-input-ty', String(ty));
-          overlayMain.updateInnerHTML('bm-input-px', String(px));
-          overlayMain.updateInnerHTML('bm-input-py', String(py));
-          try { GM.setValue('bmCoords', JSON.stringify({tx,ty,px,py})); } catch (_) {}
-          overlayMain.handleDisplayStatus('Received coordinates from external site');
-        } else {
-          overlayMain.handleDisplayError('External coords malformed');
-        }
+      // If overlay/templateManager not ready yet, queue it
+      if (!overlayMain || !templateManager) {
+        window.BM_EXTERNAL_QUEUE.push(data);
+        return;
       }
-
-      // Handle template (image + coords)
-      if (data.type === 'template') {
-        const [tx, ty, px, py] = [data.coords?.tx, data.coords?.ty, data.coords?.px, data.coords?.py].map(n => Number(n));
-        if (![tx, ty, px, py].every(Number.isFinite)) {
-          overlayMain.handleDisplayError('External template missing valid coordinates');
-          return;
-        }
-
-        let blob = null, name = data.name || 'ExternalTemplate';
-        if (data.blob instanceof Blob) {
-          blob = data.blob;
-        } else if (data.dataUrl && typeof data.dataUrl === 'string') {
-          try { blob = await (await fetch(data.dataUrl)).blob(); } catch (e) {}
-        } else if (data.url && typeof data.url === 'string') {
-          // Best-effort fetch (requires CORS on the host). For stricter control, switch to GM.xmlHttpRequest and add grant.
-          try { blob = await (await fetch(data.url, { mode: 'cors' })).blob(); } catch (e) {}
-        }
-
-        if (!blob) {
-          overlayMain.handleDisplayError('External template image unavailable (CORS/format)');
-          return;
-        }
-        templateManager.createTemplate(blob, name, [tx, ty, px, py]);
-        overlayMain.handleDisplayStatus('Received template from external site');
-      }
+      await processExternal(data);
     } catch (e) {
       try { console.warn('Blue Marble: external message error', e); } catch (_) {}
     }
   });
 
+  // Drain any queued messages now that we are ready
+  try {
+    const q = Array.isArray(window.BM_EXTERNAL_QUEUE) ? window.BM_EXTERNAL_QUEUE.splice(0) : [];
+    for (const item of q) { await processExternal(item); }
+  } catch (_) {}
+
   // Convenience: allow manual injection via DevTools
   window.BM_receiveExternal = (payload) => window.postMessage(Object.assign({ source: 'blue-marble-external' }, payload), '*');
+
+  // Notify opener (e.g., your gallery) that Blue Marble is ready to receive
+  try { window.opener && window.opener.postMessage({ source: 'blue-marble', type: 'ready' }, '*'); } catch (_) {}
 
   // ------- Helper: Build the color filter list -------
   window.buildColorFilterList = function buildColorFilterList() {
