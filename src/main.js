@@ -496,6 +496,45 @@ function buildOverlayMain() {
             }
           }
         ).buildElement()
+        // Paste coordinates from clipboard (small paper icon)
+        .addButton({'id': 'bm-button-paste-coords', 'className': 'bm-help', 'title': 'Paste coordinates from clipboard',
+                    'innerHTML': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" aria-hidden="true"><path fill="white" d="M6 2h8a2 2 0 0 1 2 2v2h-2V4H6v2H4V4a2 2 0 0 1 2-2zm-2 6h12v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8zm3 3v2h6v-2H7z"/></svg>'},
+          (instance, button) => {
+            button.onclick = async () => {
+              try {
+                let text = '';
+                try { text = await navigator.clipboard.readText(); } catch (_) {}
+                if (!text) { instance.handleDisplayError('No clipboard text found.'); return; }
+
+                // Try labeled format first: Tl X: <n>, Tl Y: <n>, Px X: <n>, Px Y: <n>
+                const labeled = /Tl\s*X:\s*(-?\d+)[^\d-]+Tl\s*Y:\s*(-?\d+)[^\d-]+Px\s*X:\s*(-?\d+)[^\d-]+Px\s*Y:\s*(-?\d+)/i.exec(text);
+
+                let nums = null;
+                if (labeled) {
+                  nums = [labeled[1], labeled[2], labeled[3], labeled[4]].map(n => Number(n));
+                } else {
+                  // Fallback: find 4 integers in sequence
+                  const found = (text.match(/-?\d+/g) || []).map(n => Number(n)).filter(n => Number.isFinite(n));
+                  if (found.length >= 4) {
+                    nums = found.slice(0,4);
+                  }
+                }
+
+                if (!nums) { instance.handleDisplayError('Clipboard text missing 4 coordinates.'); return; }
+
+                const [tx, ty, px, py] = nums;
+                instance.updateInnerHTML('bm-input-tx', String(tx));
+                instance.updateInnerHTML('bm-input-ty', String(ty));
+                instance.updateInnerHTML('bm-input-px', String(px));
+                instance.updateInnerHTML('bm-input-py', String(py));
+                try { (typeof persistCoords === 'function') && persistCoords(); } catch (_) {}
+                instance.handleDisplayStatus('Pasted coordinates from clipboard');
+              } catch (e) {
+                instance.handleDisplayError(`Failed to paste coordinates: ${e?.message || e}`);
+              }
+            };
+          }
+        ).buildElement()
         .addInput({'type': 'number', 'id': 'bm-input-tx', 'placeholder': 'Tl X', 'min': 0, 'max': 2047, 'step': 1, 'required': true, 'value': (savedCoords.tx ?? '')}, (instance, input) => {
           //if a paste happens on tx, split and format it into other coordinates if possible
           input.addEventListener("paste", (event) => {
@@ -591,41 +630,20 @@ function buildOverlayMain() {
             instance.handleDisplayStatus(`Drew to canvas!`);
           }
         }).buildElement()
-        .addButton({'id': 'bm-button-paste', 'textContent': 'Paste from Clipboard'}, (instance, button) => {
+        // Paste an image template from clipboard
+        .addButton({'id': 'bm-button-paste-image', 'textContent': 'Paste Image Template'}, (instance, button) => {
           button.onclick = async () => {
             try {
-              // 1) Read text for coordinates
-              let text = '';
-              try { text = await navigator.clipboard.readText(); } catch (_) {}
-              const regex = /Tl\s*X:\s*(-?\d+)[^\d-]+Tl\s*Y:\s*(-?\d+)[^\d-]+Px\s*X:\s*(-?\d+)[^\d-]+Px\s*Y:\s*(-?\d+)/i;
-              const match = regex.exec(text || '');
-              let tx, ty, px, py;
-              if (match) {
-                tx = Number(match[1]);
-                ty = Number(match[2]);
-                px = Number(match[3]);
-                py = Number(match[4]);
-                // Fill inputs and persist
-                instance.updateInnerHTML('bm-input-tx', String(tx));
-                instance.updateInnerHTML('bm-input-ty', String(ty));
-                instance.updateInnerHTML('bm-input-px', String(px));
-                instance.updateInnerHTML('bm-input-py', String(py));
-                try { /* persist */ const handler = null; } catch (_) {}
-                try { /* call outer helper */ } catch (_) {}
-                // Persist via the local helper defined above
-                try { (typeof persistCoords === 'function') && persistCoords(); } catch (_) {}
-              } else {
-                // If text not found or malformed, try to fall back to existing inputs
-                const ix = document.querySelector('#bm-input-tx');
-                const iy = document.querySelector('#bm-input-ty');
-                const ipx = document.querySelector('#bm-input-px');
-                const ipy = document.querySelector('#bm-input-py');
-                if (!ix?.value || !iy?.value || !ipx?.value || !ipy?.value) {
-                  instance.handleDisplayError('Clipboard text missing coordinates in the format "(Tl X: ###, Tl Y: ###, Px X: ###, Px Y: ###)" and no existing coords found.');
-                  return;
-                }
-                tx = Number(ix.value); ty = Number(iy.value); px = Number(ipx.value); py = Number(ipy.value);
+              // 1) Read coordinates from inputs (require valid coords)
+              const ix = document.querySelector('#bm-input-tx');
+              const iy = document.querySelector('#bm-input-ty');
+              const ipx = document.querySelector('#bm-input-px');
+              const ipy = document.querySelector('#bm-input-py');
+              if (!ix?.value || !iy?.value || !ipx?.value || !ipy?.value) {
+                instance.handleDisplayError('Fill coordinates first (use the pin or clipboard icon).');
+                return;
               }
+              const tx = Number(ix.value); const ty = Number(iy.value); const px = Number(ipx.value); const py = Number(ipy.value);
 
               // 2) Read image from clipboard
               let blob = null; let fileName = 'Clipboard';
@@ -635,7 +653,6 @@ function buildOverlayMain() {
                   for (const type of item.types) {
                     if (type.startsWith('image/')) {
                       blob = await item.getType(type);
-                      // Derive a nice filename extension if possible
                       try {
                         const ext = type.split('/')[1] || 'png';
                         fileName = `Clipboard.${ext}`;
@@ -645,9 +662,7 @@ function buildOverlayMain() {
                   }
                   if (blob) break;
                 }
-              } catch (err) {
-                // Ignore here; we'll handle if blob is null
-              }
+              } catch (_) {}
 
               if (!blob) {
                 instance.handleDisplayError('No image found in clipboard. Copy an image and try again.');
@@ -658,7 +673,7 @@ function buildOverlayMain() {
               templateManager.createTemplate(blob, fileName.replace(/\.[^/.]+$/, ''), [tx, ty, px, py]);
               instance.handleDisplayStatus('Pasted template from clipboard!');
             } catch (e) {
-              instance.handleDisplayError(`Failed to paste from clipboard: ${e?.message || e}`);
+              instance.handleDisplayError(`Failed to paste image template: ${e?.message || e}`);
             }
           };
         }).buildElement()
