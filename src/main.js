@@ -879,11 +879,34 @@ async function buildOverlayMain() {
     // Handle template (image + coords)
     if (data.type === 'template') {
       const c = data.coords || {};
-      const tx = toNum(c.tx ?? c.tileX ?? c.TlX ?? c.position_x ?? c.tile ?? c.x);
-      const ty = toNum(c.ty ?? c.tileY ?? c.TlY ?? c.position_y ?? c.row ?? c.y);
-      const px = toNum((c.px ?? c.PxX ?? c.pixelX ?? c.offset_x ?? 0));
-      const py = toNum((c.py ?? c.PxY ?? c.pixelY ?? c.offset_y ?? 0));
+      let tx = toNum(c.tx ?? c.tileX ?? c.TlX ?? c.position_x ?? c.tile ?? c.x);
+      let ty = toNum(c.ty ?? c.tileY ?? c.TlY ?? c.position_y ?? c.row ?? c.y);
+      let px = toNum((c.px ?? c.PxX ?? c.pixelX ?? c.offset_x ?? 0));
+      let py = toNum((c.py ?? c.PxY ?? c.pixelY ?? c.offset_y ?? 0));
+      // Fallback parsing if needed
+      if (!Number.isFinite(tx) || !Number.isFinite(ty)) {
+        try {
+          const vals = [];
+          for (const [k, v] of Object.entries(c)) {
+            const n = toNum(v);
+            if (Number.isFinite(n)) vals.push({ k, n });
+          }
+          if (vals.length >= 2) {
+            if (!Number.isFinite(tx)) tx = vals.find(v => /t(x|ile|ilex|lx)$/i.test(v.k))?.n ?? vals[0].n;
+            if (!Number.isFinite(ty)) ty = vals.find(v => /t(y|ile|iley|ly)$/i.test(v.k))?.n ?? vals[1].n;
+            if (!Number.isFinite(px) && vals.length >= 3) px = vals[2].n;
+            if (!Number.isFinite(py) && vals.length >= 4) py = vals[3].n;
+          }
+          if ((!Number.isFinite(tx) || !Number.isFinite(ty)) && typeof c.position === 'string') {
+            const m = /Tl\s*X:\s*(-?\d+)[^\d-]+Tl\s*Y:\s*(-?\d+)[^\d-]+Px\s*X:\s*(-?\d+)[^\d-]+Px\s*Y:\s*(-?\d+)/i.exec(c.position);
+            if (m) { tx = toNum(m[1]); ty = toNum(m[2]); px = toNum(m[3]); py = toNum(m[4]); }
+          }
+        } catch (_) {}
+      }
+      if (!Number.isFinite(px)) px = 0;
+      if (!Number.isFinite(py)) py = 0;
       if (![tx, ty].every(Number.isFinite)) {
+        try { console.warn('Blue Marble: external coords invalid', c, { tx, ty, px, py }); } catch (_) {}
         overlayMain.handleDisplayError('External template missing valid coordinates');
         return;
       }
