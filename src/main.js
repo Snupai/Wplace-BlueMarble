@@ -912,15 +912,18 @@ async function buildOverlayMain() {
       }
 
       let blob = null, name = data.name || 'ExternalTemplate';
+      const aliasDataUrl = (data.dataUrl || data.dataURL || '');
+      const aliasUrl = (data.url || data.imageUrl || data.href || data.src || '');
 
       // Helper: robust Data URL -> Blob (avoids CORS/fetch issues)
       const blobFromDataUrl = (du) => {
         try {
-          if (typeof du !== 'string' || !du.startsWith('data:')) return null;
-          const comma = du.indexOf(',');
+          const s = (typeof du === 'string') ? du.trim() : '';
+          if (!/^data:/i.test(s)) return null;
+          const comma = s.indexOf(',');
           if (comma < 0) return null;
-          const meta = du.slice(0, comma);
-          const body = du.slice(comma + 1);
+          const meta = s.slice(0, comma);
+          const body = s.slice(comma + 1);
           const m = /^data:([^;]*)(;base64)?/i.exec(meta);
           const mime = (m && m[1]) ? m[1] : 'application/octet-stream';
           const isB64 = !!(m && m[2]);
@@ -941,15 +944,15 @@ async function buildOverlayMain() {
         blob = data.blob;
       }
       // Prefer decoding dataUrl locally to avoid CORS
-      if (!blob && data.dataUrl && typeof data.dataUrl === 'string') {
-        blob = blobFromDataUrl(data.dataUrl);
+      if (!blob && typeof aliasDataUrl === 'string' && aliasDataUrl) {
+        blob = blobFromDataUrl(aliasDataUrl);
         if (!blob) {
           // Fallback to fetch if decoding failed
-          try { blob = await (await fetch(data.dataUrl)).blob(); } catch (_) {}
+          try { blob = await (await fetch(aliasDataUrl)).blob(); } catch (_) {}
         }
       }
       // Remote URL: try Tampermonkey XHR first (bypasses CORS), then fetch as fallback
-      if (!blob && data.url && typeof data.url === 'string') {
+      if (!blob && typeof aliasUrl === 'string' && aliasUrl) {
         const fetchViaGM = (u) => new Promise((resolve, reject) => {
           try {
             const GMxhr = (typeof GM !== 'undefined' && GM?.xmlHttpRequest) || (typeof GM_xmlhttpRequest !== 'undefined' && GM_xmlhttpRequest);
@@ -973,13 +976,14 @@ async function buildOverlayMain() {
           } catch (e) { reject(e); }
         });
 
-        try { blob = await fetchViaGM(data.url); } catch (_) {}
+        try { blob = await fetchViaGM(aliasUrl); } catch (_) {}
         if (!blob) {
-          try { blob = await (await fetch(data.url, { mode: 'cors' })).blob(); } catch (_) {}
+          try { blob = await (await fetch(aliasUrl, { mode: 'cors' })).blob(); } catch (_) {}
         }
       }
 
       if (!blob) {
+        try { console.warn('Blue Marble: failed to load external image', { aliasUrl, hasDataUrl: !!aliasDataUrl }); } catch (_) {}
         overlayMain.handleDisplayError('External template image unavailable (CORS/format)');
         return;
       }
