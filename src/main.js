@@ -805,8 +805,8 @@ async function buildOverlayMain() {
         }).buildElement()
       .buildElement()
       .addTextarea({'id': overlayMain.outputStatusId, 'placeholder': `Status: Sleeping...\nVersion: ${version}`, 'readOnly': true}).buildElement()
-      .addDiv({'id': 'bm-contain-buttons-action'})
-        .addDiv()
+  .addDiv({'id': 'bm-contain-buttons-action'})
+    .addDiv()
           // .addButton({'id': 'bm-button-teleport', 'className': 'bm-help', 'textContent': '✈'}).buildElement()
           // .addButton({'id': 'bm-button-favorite', 'className': 'bm-help', 'innerHTML': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><polygon points="10,2 12,7.5 18,7.5 13.5,11.5 15.5,18 10,14 4.5,18 6.5,11.5 2,7.5 8,7.5" fill="white"></polygon></svg>'}).buildElement()
           // .addButton({'id': 'bm-button-templates', 'className': 'bm-help', 'innerHTML': '🖌'}).buildElement()
@@ -814,6 +814,24 @@ async function buildOverlayMain() {
             (instance, button) => {
             button.addEventListener('click', () => {
               window.open('https://pepoafonso.github.io/color_converter_wplace/', '_blank', 'noopener noreferrer');
+            });
+          }).buildElement()
+          .addButton({'id': 'bm-button-gallery', 'className': 'bm-help', 'innerHTML': '🖼️', 'title': 'Open Gallery (pxl-wplace)'}, 
+            (instance, button) => {
+            button.addEventListener('click', () => {
+              try {
+                const GALLERY_URL = 'https://pxl-wplace.snupai.dev/gallery?from=bm';
+                // Intentionally keep the opener relationship for handshake
+                const win = window.open(GALLERY_URL, 'bm-gallery');
+                setTimeout(() => {
+                  try {
+                    win && win.postMessage({ source: 'blue-marble', type: 'ready' }, 'https://pxl-wplace.snupai.dev');
+                    instance.handleDisplayStatus('Opened gallery; waiting for connection...');
+                  } catch (_) {}
+                }, 500);
+              } catch (e) {
+                instance.handleDisplayError('Failed to open gallery window');
+              }
             });
           }).buildElement()
           .addButton({'id': 'bm-button-website', 'className': 'bm-help', 'innerHTML': '🌐', 'title': 'Official Blue Marble Website'}, 
