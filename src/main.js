@@ -951,6 +951,11 @@ async function buildOverlayMain() {
           }
         } catch (_) {}
       }
+      // Final coercion to ensure numbers (avoid string types slipping through)
+      tx = Number(tx);
+      ty = Number(ty);
+      px = Number(px);
+      py = Number(py);
       if (!Number.isFinite(px)) px = 0;
       if (!Number.isFinite(py)) py = 0;
       if (![tx, ty].every(Number.isFinite)) {
@@ -1138,6 +1143,7 @@ async function buildOverlayMain() {
         return;
       }
       try {
+        try { console.log('Blue Marble: createTemplate() with coords', { tx, ty, px, py, types: { tx: typeof tx, ty: typeof ty, px: typeof px, py: typeof py } }); } catch (_) {}
         templateManager.createTemplate(blob, name, [tx, ty, Number.isFinite(px)?px:0, Number.isFinite(py)?py:0]);
         try { GM.setValue('bmCoords', JSON.stringify({ tx, ty, px: Number.isFinite(px)?px:0, py: Number.isFinite(py)?py:0 })); } catch (_) {}
         overlayMain.handleDisplayStatus('Received template from external site');
