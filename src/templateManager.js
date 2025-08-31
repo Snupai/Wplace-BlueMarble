@@ -576,10 +576,20 @@ export default class TemplateManager {
           for (const tile in tilesbase64) {
             console.log(tile);
             if (tilesbase64.hasOwnProperty(tile)) {
-              const encodedTemplateBase64 = tilesbase64[tile];
+              // Accept both raw base64 and full data URLs (e.g., data:image/png;base64,....)
+              let encodedTemplateBase64 = String(tilesbase64[tile] || '');
+              let mimeType = 'image/png';
+              if (encodedTemplateBase64.startsWith('data:')) {
+                const match = /^data:([^;]+);base64,(.*)$/i.exec(encodedTemplateBase64);
+                if (match) {
+                  mimeType = match[1] || mimeType;
+                  encodedTemplateBase64 = match[2] || '';
+                }
+              }
+
               const templateUint8Array = base64ToUint8(encodedTemplateBase64); // Base 64 -> Uint8Array
 
-              const templateBlob = new Blob([templateUint8Array], { type: "image/png" }); // Uint8Array -> Blob
+              const templateBlob = new Blob([templateUint8Array], { type: mimeType }); // Uint8Array -> Blob
               const templateBitmap = await createImageBitmap(templateBlob) // Blob -> Bitmap
               templateTiles[tile] = templateBitmap;
 
@@ -605,7 +615,8 @@ export default class TemplateManager {
                     if (a < 64) { continue; }
                     if (r === 222 && g === 250 && b === 206) { continue; }
                     requiredPixelCount++;
-                    const key = activeTemplate.allowedColorsSet.has(`${r},${g},${b}`) ? `${r},${g},${b}` : 'other';
+                    // During import we don't yet have an active Template instance; just aggregate by rgb
+                    const key = `${r},${g},${b}`;
                     paletteMap.set(key, (paletteMap.get(key) || 0) + 1);
                   }
                 }

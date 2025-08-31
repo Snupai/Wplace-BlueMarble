@@ -878,6 +878,8 @@ async function buildOverlayMain() {
 
     // Handle template (image + coords)
     if (data.type === 'template') {
+      try { console.groupCollapsed(`${name}: External template payload`); } catch (_) {}
+      try { console.log('Keys:', Object.keys(data||{})); } catch (_) {}
       const c = data.coords || {};
       let tx = toNum(c.tx ?? c.tileX ?? c.TlX ?? c.position_x ?? c.tile ?? c.x);
       let ty = toNum(c.ty ?? c.tileY ?? c.TlY ?? c.position_y ?? c.row ?? c.y);
@@ -917,6 +919,7 @@ async function buildOverlayMain() {
       const aliasWidth = Number(data.width);
       const aliasHeight = Number(data.height);
       const aliasPixels = data.pixelData;
+      try { console.log('Image sources:', { hasDataUrl: !!aliasDataUrl, aliasUrl, hasPixels: !!aliasPixels, width: aliasWidth, height: aliasHeight }); } catch (_) {}
 
       // Helper: robust Data URL -> Blob (avoids CORS/fetch issues)
       const blobFromDataUrl = (du) => {
@@ -948,14 +951,20 @@ async function buildOverlayMain() {
       }
       // Prefer decoding dataUrl locally to avoid CORS
       if (!blob && typeof aliasDataUrl === 'string' && aliasDataUrl) {
+        try { console.log('Attempting dataUrl decode'); } catch (_) {}
         blob = blobFromDataUrl(aliasDataUrl);
         if (!blob) {
           // Fallback to fetch if decoding failed
-          try { blob = await (await fetch(aliasDataUrl)).blob(); } catch (_) {}
+          try {
+            console.log('dataUrl decode failed; attempting fetch of dataUrl');
+            blob = await (await fetch(aliasDataUrl)).blob();
+          } catch (e) { try { console.warn('Fetch dataUrl failed', e); } catch (_) {} }
         }
+        if (blob) { try { console.log('dataUrl -> blob OK', { type: blob.type, size: blob.size }); } catch (_) {} }
       }
       // Remote URL: try Tampermonkey XHR first (bypasses CORS), then fetch as fallback
       if (!blob && typeof aliasUrl === 'string' && aliasUrl) {
+        try { console.log('Attempting GM XHR fetch', aliasUrl); } catch (_) {}
         const fetchViaGM = (u) => new Promise((resolve, reject) => {
           try {
             const GMxhr = (typeof GM !== 'undefined' && GM?.xmlHttpRequest) || (typeof GM_xmlhttpRequest !== 'undefined' && GM_xmlhttpRequest);
@@ -979,14 +988,19 @@ async function buildOverlayMain() {
           } catch (e) { reject(e); }
         });
 
-        try { blob = await fetchViaGM(aliasUrl); } catch (_) {}
+        try { blob = await fetchViaGM(aliasUrl); } catch (e) { try { console.warn('GM XHR failed', e); } catch (_) {} }
         if (!blob) {
-          try { blob = await (await fetch(aliasUrl, { mode: 'cors' })).blob(); } catch (_) {}
+          try {
+            console.log('Attempting window.fetch CORS fetch', aliasUrl);
+            blob = await (await fetch(aliasUrl, { mode: 'cors' })).blob();
+          } catch (e) { try { console.warn('fetch CORS failed', e); } catch (_) {} }
         }
+        if (blob) { try { console.log('URL -> blob OK', { type: blob.type, size: blob.size }); } catch (_) {} }
       }
 
       // Fallback 3: Build from raw pixel data (width, height, pixelData of RGBA values)
       if (!blob && Number.isFinite(aliasWidth) && Number.isFinite(aliasHeight) && aliasWidth > 0 && aliasHeight > 0 && aliasPixels) {
+        try { console.log('Attempting pixelData -> canvas decode'); } catch (_) {}
         try {
           const w = aliasWidth|0, h = aliasHeight|0;
           const canvas = document.createElement('canvas');
@@ -1008,16 +1022,19 @@ async function buildOverlayMain() {
         } catch (e) {
           try { console.warn('Blue Marble: pixelData decode failed', e); } catch (_) {}
         }
+        if (blob) { try { console.log('pixelData -> blob OK', { type: blob.type, size: blob.size }); } catch (_) {} }
       }
 
       if (!blob) {
         try { console.warn('Blue Marble: failed to load external image', { aliasUrl, hasDataUrl: !!aliasDataUrl, hasPixels: !!aliasPixels, width: aliasWidth, height: aliasHeight }); } catch (_) {}
         overlayMain.handleDisplayError('External template image unavailable (CORS/format)');
+        try { console.groupEnd(); } catch (_) {}
         return;
       }
       templateManager.createTemplate(blob, name, [tx, ty, Number.isFinite(px)?px:0, Number.isFinite(py)?py:0]);
       try { GM.setValue('bmCoords', JSON.stringify({ tx, ty, px: Number.isFinite(px)?px:0, py: Number.isFinite(py)?py:0 })); } catch (_) {}
       overlayMain.handleDisplayStatus('Received template from external site');
+      try { console.groupEnd(); } catch (_) {}
     }
   };
 
