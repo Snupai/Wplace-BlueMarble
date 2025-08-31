@@ -851,14 +851,19 @@ async function buildOverlayMain() {
   window.BM_EXTERNAL_QUEUE = window.BM_EXTERNAL_QUEUE || [];
   const processExternal = async (payload) => {
     const data = payload;
+    const toNum = (v) => {
+      if (typeof v === 'number' && Number.isFinite(v)) return v;
+      if (typeof v === 'string') { const m = /-?\d+/.exec(v); if (m) { const n = Number(m[0]); if (Number.isFinite(n)) return n; } }
+      return NaN;
+    };
     // Handle coordinate injection (supports multiple field names)
     if (data.type === 'coords' || (data.coords && data.type !== 'template')) {
       const c = data.coords || {};
       // Accept aliases: tx/tileX/TlX/position_x, ty/tileY/TlY/position_y, px/PxX, py/PxY
-      const tx = Number(c.tx ?? c.tileX ?? c.TlX ?? c.position_x ?? c.tile ?? c.x);
-      const ty = Number(c.ty ?? c.tileY ?? c.TlY ?? c.position_y ?? c.row ?? c.y);
-      const px = Number((c.px ?? c.PxX ?? c.pixelX ?? c.offset_x ?? 0));
-      const py = Number((c.py ?? c.PxY ?? c.pixelY ?? c.offset_y ?? 0));
+      const tx = toNum(c.tx ?? c.tileX ?? c.TlX ?? c.position_x ?? c.tile ?? c.x);
+      const ty = toNum(c.ty ?? c.tileY ?? c.TlY ?? c.position_y ?? c.row ?? c.y);
+      const px = toNum((c.px ?? c.PxX ?? c.pixelX ?? c.offset_x ?? 0));
+      const py = toNum((c.py ?? c.PxY ?? c.pixelY ?? c.offset_y ?? 0));
       if ([tx, ty].every(Number.isFinite)) {
         overlayMain.updateInnerHTML('bm-input-tx', String(tx));
         overlayMain.updateInnerHTML('bm-input-ty', String(ty));
@@ -874,10 +879,10 @@ async function buildOverlayMain() {
     // Handle template (image + coords)
     if (data.type === 'template') {
       const c = data.coords || {};
-      const tx = Number(c.tx ?? c.tileX ?? c.TlX ?? c.position_x ?? c.tile ?? c.x);
-      const ty = Number(c.ty ?? c.tileY ?? c.TlY ?? c.position_y ?? c.row ?? c.y);
-      const px = Number((c.px ?? c.PxX ?? c.pixelX ?? c.offset_x ?? 0));
-      const py = Number((c.py ?? c.PxY ?? c.pixelY ?? c.offset_y ?? 0));
+      const tx = toNum(c.tx ?? c.tileX ?? c.TlX ?? c.position_x ?? c.tile ?? c.x);
+      const ty = toNum(c.ty ?? c.tileY ?? c.TlY ?? c.position_y ?? c.row ?? c.y);
+      const px = toNum((c.px ?? c.PxX ?? c.pixelX ?? c.offset_x ?? 0));
+      const py = toNum((c.py ?? c.PxY ?? c.pixelY ?? c.offset_y ?? 0));
       if (![tx, ty].every(Number.isFinite)) {
         overlayMain.handleDisplayError('External template missing valid coordinates');
         return;
@@ -897,6 +902,7 @@ async function buildOverlayMain() {
         return;
       }
       templateManager.createTemplate(blob, name, [tx, ty, Number.isFinite(px)?px:0, Number.isFinite(py)?py:0]);
+      try { GM.setValue('bmCoords', JSON.stringify({ tx, ty, px: Number.isFinite(px)?px:0, py: Number.isFinite(py)?py:0 })); } catch (_) {}
       overlayMain.handleDisplayStatus('Received template from external site');
     }
   };
