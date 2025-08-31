@@ -912,6 +912,16 @@ async function buildOverlayMain() {
         overlayMain.handleDisplayError('External template missing valid coordinates');
         return;
       }
+      // Reflect coordinates in the UI immediately (match 'coords' handler behavior)
+      try {
+        overlayMain.updateInnerHTML('bm-input-tx', String(tx));
+        overlayMain.updateInnerHTML('bm-input-ty', String(ty));
+        overlayMain.updateInnerHTML('bm-input-px', Number.isFinite(px) ? String(px) : '0');
+        overlayMain.updateInnerHTML('bm-input-py', Number.isFinite(py) ? String(py) : '0');
+        // Persist immediately so UI remains consistent even if template creation fails/awaits
+        try { GM.setValue('bmCoords', JSON.stringify({ tx, ty, px: Number.isFinite(px)?px:0, py: Number.isFinite(py)?py:0 })); } catch (_) {}
+        overlayMain.handleDisplayStatus('Received coordinates from external template');
+      } catch (_) {}
 
       let blob = null, name = data.name || 'ExternalTemplate';
       // Try many common aliases and simple nestings for data URLs and URLs
