@@ -859,11 +859,42 @@ async function buildOverlayMain() {
     // Handle coordinate injection (supports multiple field names)
     if (data.type === 'coords' || (data.coords && data.type !== 'template')) {
       const c = data.coords || {};
-      // Accept aliases: tx/tileX/TlX/position_x, ty/tileY/TlY/position_y, px/PxX, py/PxY
-      const tx = toNum(c.tx ?? c.tileX ?? c.TlX ?? c.position_x ?? c.tile ?? c.x);
-      const ty = toNum(c.ty ?? c.tileY ?? c.TlY ?? c.position_y ?? c.row ?? c.y);
-      const px = toNum((c.px ?? c.PxX ?? c.pixelX ?? c.offset_x ?? 0));
-      const py = toNum((c.py ?? c.PxY ?? c.pixelY ?? c.offset_y ?? 0));
+      // Support array-form coords: [tx, ty, px, py]
+      let tx = Array.isArray(c) ? toNum(c[0]) : toNum(c.tx ?? c.tileX ?? c.TlX ?? c.position_x ?? c.tile ?? c.x);
+      let ty = Array.isArray(c) ? toNum(c[1]) : toNum(c.ty ?? c.tileY ?? c.TlY ?? c.position_y ?? c.row ?? c.y);
+      let px = Array.isArray(c) ? toNum(c[2]) : toNum((c.px ?? c.pX ?? c.PxX ?? c.pixelX ?? c.offset_x ?? data.px ?? data.pX ?? data.PxX ?? data.pixelX ?? data.offset_x ?? 0));
+      let py = Array.isArray(c) ? toNum(c[3]) : toNum((c.py ?? c.pY ?? c.PxY ?? c.pixelY ?? c.offset_y ?? data.py ?? data.pY ?? data.PxY ?? data.pixelY ?? data.offset_y ?? 0));
+      // If px/py are still not finite, try to discover from object fields or string payloads
+      try {
+        if (!Number.isFinite(px) || !Number.isFinite(py)) {
+          // Scan object entries for case-insensitive key matches
+          const scanObj = (obj) => {
+            try {
+              for (const [k, v] of Object.entries(obj || {})) {
+                const lk = String(k).toLowerCase();
+                if (!Number.isFinite(px) && (lk === 'px' || lk === 'pixelx' || lk === 'offset_x')) { const n = toNum(v); if (Number.isFinite(n)) px = n; }
+                if (!Number.isFinite(py) && (lk === 'py' || lk === 'pixely' || lk === 'offset_y')) { const n = toNum(v); if (Number.isFinite(n)) py = n; }
+              }
+            } catch (_) {}
+          };
+          scanObj(c);
+          scanObj(data);
+          // Parse common labeled string formats
+          if ((!Number.isFinite(px) || !Number.isFinite(py))) {
+            const posStr = (typeof c.position === 'string' && c.position) || (typeof data.position === 'string' && data.position) || '';
+            if (posStr) {
+              const m = /Tl\s*X:\s*(-?\d+)[^\d-]+Tl\s*Y:\s*(-?\d+)[^\d-]+Px\s*X:\s*(-?\d+)[^\d-]+Px\s*Y:\s*(-?\d+)/i.exec(posStr);
+              if (m) {
+                const [, mtx, mty, mpx, mpy] = m;
+                if (!Number.isFinite(tx)) tx = toNum(mtx);
+                if (!Number.isFinite(ty)) ty = toNum(mty);
+                if (!Number.isFinite(px)) px = toNum(mpx);
+                if (!Number.isFinite(py)) py = toNum(mpy);
+              }
+            }
+          }
+        }
+      } catch (_) {}
       if ([tx, ty].every(Number.isFinite)) {
         overlayMain.updateInnerHTML('bm-input-tx', String(tx));
         overlayMain.updateInnerHTML('bm-input-ty', String(ty));
@@ -882,13 +913,13 @@ async function buildOverlayMain() {
       try { console.log('Keys:', Object.keys(data||{})); } catch (_) {}
       const c = data.coords || {};
       // Accept aliases and also consider top-level fallbacks if coords object misses fields
-      let tx = toNum(c.tx ?? c.tileX ?? c.TlX ?? c.position_x ?? c.tile ?? c.x ?? data.tx ?? data.tileX ?? data.x);
-      let ty = toNum(c.ty ?? c.tileY ?? c.TlY ?? c.position_y ?? c.row ?? c.y ?? data.ty ?? data.tileY ?? data.y);
-      let px = toNum((c.px ?? c.PxX ?? c.pixelX ?? c.offset_x ?? data.px ?? data.PxX ?? data.pixelX ?? data.offset_x ?? 0));
-      let py = toNum((c.py ?? c.PxY ?? c.pixelY ?? c.offset_y ?? data.py ?? data.PxY ?? data.pixelY ?? data.offset_y ?? 0));
+      let tx = Array.isArray(c) ? toNum(c[0]) : toNum(c.tx ?? c.tileX ?? c.TlX ?? c.position_x ?? c.tile ?? c.x ?? data.tx ?? data.tileX ?? data.x);
+      let ty = Array.isArray(c) ? toNum(c[1]) : toNum(c.ty ?? c.tileY ?? c.TlY ?? c.position_y ?? c.row ?? c.y ?? data.ty ?? data.tileY ?? data.y);
+      let px = Array.isArray(c) ? toNum(c[2]) : toNum((c.px ?? c.pX ?? c.PxX ?? c.pixelX ?? c.offset_x ?? data.px ?? data.pX ?? data.PxX ?? data.pixelX ?? data.offset_x ?? 0));
+      let py = Array.isArray(c) ? toNum(c[3]) : toNum((c.py ?? c.pY ?? c.PxY ?? c.pixelY ?? c.offset_y ?? data.py ?? data.pY ?? data.PxY ?? data.pixelY ?? data.offset_y ?? 0));
       try { console.log('Blue Marble: Parsed external template coords', { raw: c, tx, ty, px, py, types: { tx: typeof tx, ty: typeof ty, px: typeof px, py: typeof py } }); } catch (_) {}
-      // Fallback parsing if needed
-      if (!Number.isFinite(tx) || !Number.isFinite(ty)) {
+      // Fallback parsing for any missing coord (including px/py even if tx/ty are valid)
+      if (!Number.isFinite(tx) || !Number.isFinite(ty) || !Number.isFinite(px) || !Number.isFinite(py)) {
         try {
           const vals = [];
           for (const [k, v] of Object.entries(c)) {
@@ -898,12 +929,25 @@ async function buildOverlayMain() {
           if (vals.length >= 2) {
             if (!Number.isFinite(tx)) tx = vals.find(v => /t(x|ile|ilex|lx)$/i.test(v.k))?.n ?? vals[0].n;
             if (!Number.isFinite(ty)) ty = vals.find(v => /t(y|ile|iley|ly)$/i.test(v.k))?.n ?? vals[1].n;
-            if (!Number.isFinite(px) && vals.length >= 3) px = vals[2].n;
-            if (!Number.isFinite(py) && vals.length >= 4) py = vals[3].n;
           }
-          if ((!Number.isFinite(tx) || !Number.isFinite(ty)) && typeof c.position === 'string') {
-            const m = /Tl\s*X:\s*(-?\d+)[^\d-]+Tl\s*Y:\s*(-?\d+)[^\d-]+Px\s*X:\s*(-?\d+)[^\d-]+Px\s*Y:\s*(-?\d+)/i.exec(c.position);
-            if (m) { tx = toNum(m[1]); ty = toNum(m[2]); px = toNum(m[3]); py = toNum(m[4]); }
+          if (!Number.isFinite(px)) {
+            const pxGuess = vals.find(v => /(p(x|ixelx)|offset_x)$/i.test(v.k))?.n;
+            if (Number.isFinite(pxGuess)) px = pxGuess; else if (vals.length >= 3) px = vals[2].n;
+          }
+          if (!Number.isFinite(py)) {
+            const pyGuess = vals.find(v => /(p(y|ixely)|offset_y)$/i.test(v.k))?.n;
+            if (Number.isFinite(pyGuess)) py = pyGuess; else if (vals.length >= 4) py = vals[3].n;
+          }
+          // Parse labeled string formats from coords or top-level
+          const posStr = (typeof c.position === 'string' && c.position) || (typeof data.position === 'string' && data.position) || '';
+          if (posStr) {
+            const m = /Tl\s*X:\s*(-?\d+)[^\d-]+Tl\s*Y:\s*(-?\d+)[^\d-]+Px\s*X:\s*(-?\d+)[^\d-]+Px\s*Y:\s*(-?\d+)/i.exec(posStr);
+            if (m) {
+              if (!Number.isFinite(tx)) tx = toNum(m[1]);
+              if (!Number.isFinite(ty)) ty = toNum(m[2]);
+              if (!Number.isFinite(px)) px = toNum(m[3]);
+              if (!Number.isFinite(py)) py = toNum(m[4]);
+            }
           }
         } catch (_) {}
       }
