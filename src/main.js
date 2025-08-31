@@ -185,24 +185,7 @@ const storageTemplates = JSON.parse(GM_getValue('bmTemplates', '{}'));
 console.log(storageTemplates);
 templateManager.importJSON(storageTemplates); // Loads the templates
 
-const userSettings = JSON.parse(GM_getValue('bmUserSettings', '{}')); // Loads the user settings
-console.log(userSettings);
-console.log(Object.keys(userSettings).length);
-if (Object.keys(userSettings).length == 0) {
-  const uuid = crypto.randomUUID(); // Generates a random UUID
-  console.log(uuid);
-  GM.setValue('bmUserSettings', JSON.stringify({
-    'uuid': uuid
-  }));
-}
-setInterval(() => apiManager.sendHeartbeat(version), 1000 * 60 * 30); // Sends a heartbeat every 30 minutes
-
-console.log(`Telemetry is ${!(userSettings?.telemetry == undefined)}`);
-if ((userSettings?.telemetry == undefined) || (userSettings?.telemetry > 1)) { // Increment 1 to retrigger telemetry notice
-  const telemetryOverlay = new Overlay(name, version);
-  telemetryOverlay.setApiManager(apiManager); // Sets the API manager for the telemetry overlay
-  buildTelemetryOverlay(telemetryOverlay); // Notifies the user about telemetry
-}
+const userSettings = JSON.parse(GM_getValue('bmUserSettings', '{}')); // Loads the user settings (kept for future settings)
 
 buildOverlayMain(); // Builds the main overlay
 
@@ -802,55 +785,7 @@ function buildOverlayMain() {
   }, 0);
 }
 
-function buildTelemetryOverlay(overlay) {
-  overlay.addDiv({'id': 'bm-overlay-telemetry', style: 'top: 0px; left: 0px; width: 100vw; max-width: 100vw; height: 100vh; max-height: 100vh; z-index: 9999;'})
-    .addDiv({'id': 'bm-contain-all-telemetry', style: 'display: flex; flex-direction: column; align-items: center;'})
-      .addDiv({'id': 'bm-contain-header-telemetry', style: 'margin-top: 10%;'})
-        .addHeader(1, {'textContent': `${name} Telemetry`}).buildElement()
-      .buildElement()
-
-      .addDiv({'id': 'bm-contain-telemetry', style: 'max-width: 50%; overflow-y: auto; max-height: 80vh;'})
-        .addHr().buildElement()
-        .addBr().buildElement()
-        .addDiv({'style': 'width: fit-content; margin: auto; text-align: center;'})
-        .addButton({'id': 'bm-button-telemetry-more', 'textContent': 'More Information'}, (instance, button) => {
-          button.onclick = () => {
-            window.open('https://github.com/SwingTheVine/Wplace-TelemetryServer#telemetry-data', '_blank', 'noopener noreferrer');
-          }
-        }).buildElement()
-        .buildElement()
-        .addBr().buildElement()
-        .addDiv({style: 'width: fit-content; margin: auto; text-align: center;'})
-          .addButton({'id': 'bm-button-telemetry-enable', 'textContent': 'Enable Telemetry', 'style': 'margin-right: 2ch;'}, (instance, button) => {
-            button.onclick = () => {
-              const userSettings = JSON.parse(GM_getValue('bmUserSettings', '{}'));
-              userSettings.telemetry = 1;
-              GM.setValue('bmUserSettings', JSON.stringify(userSettings));
-              const element = document.getElementById('bm-overlay-telemetry');
-              if (element) {
-                element.style.display = 'none';
-              }
-            }
-          }).buildElement()
-          .addButton({'id': 'bm-button-telemetry-disable', 'textContent': 'Disable Telemetry'}, (instance, button) => {
-            button.onclick = () => {
-              const userSettings = JSON.parse(GM_getValue('bmUserSettings', '{}'));
-              userSettings.telemetry = 0;
-              GM.setValue('bmUserSettings', JSON.stringify(userSettings));
-              const element = document.getElementById('bm-overlay-telemetry');
-              if (element) {
-                element.style.display = 'none';
-              }
-            }
-          }).buildElement()
-        .buildElement()
-        .addBr().buildElement()
-        .addP({'textContent': 'We collect anonymous telemetry data such as your browser, OS, and script version to make the experience better for everyone. The data is never shared personally. The data is never sold. You can turn this off by pressing the \'Disable\' button, but keeping it on helps us improve features and reliability faster. Thank you for supporting the Blue Marble!'}).buildElement()
-        .addP({'textContent': 'You can disable telemetry by pressing the "Disable" button below.'}).buildElement()
-      .buildElement()
-    .buildElement()
-  .buildOverlay(document.body);
-}
+// Telemetry overlay removed
 
 function buildOverlayTabTemplate() {
   overlayTabTemplate.addDiv({'id': 'bm-tab-template', 'style': 'top: 20%; left: 10%;'})
