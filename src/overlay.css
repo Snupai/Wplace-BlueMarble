@@ -1,10 +1,39 @@
 /* @since 0.5.1 */
+/* Catppuccin Mocha theme variables */
+:root {
+  --ctp-rosewater: #f5e0dc;
+  --ctp-flamingo: #f2cdcd;
+  --ctp-pink: #f5c2e7;
+  --ctp-mauve: #cba6f7;
+  --ctp-red: #f38ba8;
+  --ctp-maroon: #eba0ac;
+  --ctp-peach: #fab387;
+  --ctp-yellow: #f9e2af;
+  --ctp-green: #a6e3a1;
+  --ctp-teal: #94e2d5;
+  --ctp-sky: #89dceb;
+  --ctp-sapphire: #74c7ec;
+  --ctp-blue: #89b4fa;
+  --ctp-lavender: #b4befe;
+  --ctp-text: #cdd6f4;
+  --ctp-subtext1: #bac2de;
+  --ctp-subtext0: #a6adc8;
+  --ctp-overlay2: #6c7086;
+  --ctp-overlay1: #7f849c;
+  --ctp-overlay0: #9399b2;
+  --ctp-surface2: #585b70;
+  --ctp-surface1: #45475a;
+  --ctp-surface0: #313244;
+  --ctp-base: #1e1e2e;
+  --ctp-mantle: #181825;
+  --ctp-crust: #11111b;
+}
 
 /* The entire overlay */
 #bm-overlay {
   position: fixed !important;
-  background-color: rgba(21, 48, 99, 0.9);
-  color: white;
+  background-color: rgba(30, 30, 46, 0.92); /* base with alpha */
+  color: var(--ctp-text);
   padding: 10px;
   border-radius: 8px;
   /* Use a very high z-index to stay above site UI/iframes */
@@ -18,6 +47,8 @@
   -webkit-backface-visibility: hidden;
   transform-style: preserve-3d;
   -webkit-transform-style: preserve-3d;
+  border: 1px solid var(--ctp-surface1);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
 }
 
 /* Smooth transitions for minimize/maximize functionality */
@@ -26,6 +57,13 @@
 #bm-contain-automation, 
 #bm-contain-buttons-action {
   transition: opacity 0.2s ease, height 0.2s ease;
+}
+
+/* Divider styling to match Mocha */
+#bm-overlay hr {
+  border: none;
+  height: 1px;
+  background: var(--ctp-surface1);
 }
 
 /* The entire overlay BUT it is cascading */
@@ -45,7 +83,7 @@ div#bm-overlay {
 #bm-bar-drag {
   margin-bottom: 0.5em;
   /* For background circles, width & height should be odd, cx & cy should be half of width & height, and r should be less than or equal to cx & cy */
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="5" height="5"><circle cx="3" cy="3" r="1.5" fill="CornflowerBlue" /></svg>') repeat;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="5" height="5"><circle cx="3" cy="3" r="1.5" fill="%2389b4fa" /></svg>') repeat; /* blue */
   cursor: grab;
   width: 100%;
   height: 1em;
@@ -121,6 +159,7 @@ div#bm-overlay {
   font-size: x-large;
   font-weight: bold;
   vertical-align: middle;
+  color: var(--ctp-text);
 }
 
 /* Checkboxes in the automation container */
@@ -136,13 +175,16 @@ div#bm-overlay {
 
 /* Question Mark button */
 .bm-help {
-  border: white 1px solid;
+  border: 1px solid var(--ctp-overlay0);
   height: 1.5em;
   width: 1.5em;
   margin-top: 2px;
   text-align: center;
   line-height: 1em;
   padding: 0 !important; /* Overrides the padding in "#bm-overlay button" */
+  background: var(--ctp-surface1);
+  color: var(--ctp-text);
+  border-radius: 6px;
 }
 
 /* Pin button */
@@ -154,7 +196,7 @@ div#bm-overlay {
 #bm-button-coords svg {
   width: 50%;
   margin: 0 auto;
-  fill: #111;
+  fill: var(--ctp-crust);
 }
 
 /* Clipboard icons: keep them compact inside small buttons */
@@ -190,7 +232,9 @@ div:has(> #bm-button-teleport) {
   -moz-appearance: textfield;
   width: 5.5ch;
   margin-left: 1ch;
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: var(--ctp-surface0);
+  color: var(--ctp-text);
+  border: 1px solid var(--ctp-surface1);
   padding: 0 0.5ch;
   font-size: small;
 }
@@ -247,7 +291,9 @@ input[type="file"][id*="template"] {
 /* Output status area */
 #bm-output-status {
   font-size: small;
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: var(--ctp-surface0);
+  color: var(--ctp-text);
+  border: 1px solid var(--ctp-surface1);
   padding: 0 0.5ch;
   height: 3.75em;
   width: 100%;
@@ -262,7 +308,7 @@ input[type="file"][id*="template"] {
 /* All small elements */
 #bm-overlay small {
   font-size: x-small;
-  color: lightgray;
+  color: var(--ctp-subtext0);
 }
 
 /* The elements that need spacing from each-other */
@@ -277,23 +323,49 @@ div:has(> #bm-input-file-template),
 
 /* All overlay buttons */
 #bm-overlay button {
-  background-color: #144eb9;
+  background-color: var(--ctp-blue);
   border-radius: 1em;
   padding: 0 0.75ch;
+  color: var(--ctp-crust);
+  border: none;
 }
 
 /* All overlay buttons when hovered/focused */
 #bm-overlay button:hover, #bm-overlay button:focus-visible {
-  background-color: #1061e5;
+  background-color: var(--ctp-sapphire);
+}
+
+/* Clear, accessible focus ring */
+#bm-overlay button:focus-visible {
+  outline: 2px solid var(--ctp-lavender);
+  outline-offset: 2px;
 }
 
 /* All overlay buttons when pressed (plus disabled color) */
 #bm-overlay button:active
 #bm-overlay button:disabled {
-  background-color: #2e97ff;
+  background-color: var(--ctp-lavender);
 }
 
 /* All overlay buttons when disabled */
 #bm-overlay button:disabled {
   text-decoration: line-through;
+  background-color: var(--ctp-surface1);
+  color: var(--ctp-overlay0);
+}
+
+/* Inputs: focus treatment */
+#bm-contain-coords input[type="number"]:focus {
+  border-color: var(--ctp-blue);
+  box-shadow: 0 0 0 2px rgba(137, 180, 250, 0.25);
+  outline: none;
+}
+
+/* Small icon buttons hover/active states */
+.bm-help:hover {
+  background: var(--ctp-surface2);
+  border-color: var(--ctp-overlay1);
+}
+.bm-help:active {
+  background: var(--ctp-overlay2);
 }
