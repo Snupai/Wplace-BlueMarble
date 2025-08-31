@@ -260,9 +260,9 @@ function buildOverlayMain() {
   
   // Inline critical positioning so the overlay remains visible even if CSS fails to load
   overlayMain.addDiv({'id': 'bm-overlay', 'style': 'position: fixed; z-index: 2147483647; top: 10px; right: 75px;'})
-    .addDiv({'id': 'bm-contain-header'})
+      .addDiv({'id': 'bm-contain-header'})
       .addDiv({'id': 'bm-bar-drag'}).buildElement()
-      .addImg({'alt': 'Blue Marble Icon - Click to minimize/maximize', 'src': 'https://raw.githubusercontent.com/SwingTheVine/Wplace-BlueMarble/main/dist/assets/Favicon.png', 'style': 'cursor: pointer;'}, 
+      .addImg({'id': 'bm-button-logo', 'alt': 'Blue Marble Icon - Click to minimize/maximize', 'src': 'https://raw.githubusercontent.com/SwingTheVine/Wplace-BlueMarble/main/dist/assets/Favicon.png', 'style': 'cursor: pointer;'}, 
         (instance, img) => {
           /** Click event handler for overlay minimize/maximize functionality.
            * 
@@ -313,7 +313,8 @@ function buildOverlayMain() {
               '#bm-input-file-template',           // Template file upload interface
               '#bm-contain-buttons-action',        // Action buttons container
               `#${instance.outputStatusId}`,       // Status log textarea for user feedback
-              '#bm-contain-colorfilter'            // Color filter UI
+              '#bm-contain-colorfilter',           // Color filter UI
+              '#bm-button-minimize'                // Minimize button
             ];
             
             // Apply visibility changes to all toggleable elements
@@ -474,6 +475,15 @@ function buildOverlayMain() {
         }
       ).buildElement()
       .addHeader(1, {'textContent': name}).buildElement()
+      // Small minimize button to the right of title
+      .addButton({'id': 'bm-button-minimize', 'className': 'bm-help', 'title': 'Minimize overlay', 'style': 'margin-left: auto;',
+                  'innerHTML': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="9" width="12" height="2" fill="white" rx="1"/></svg>'},
+        (instance, button) => {
+          button.addEventListener('click', () => {
+            try { document.getElementById('bm-button-logo')?.click(); } catch (_) {}
+          });
+        }
+      ).buildElement()
     .buildElement()
 
     .addHr().buildElement()

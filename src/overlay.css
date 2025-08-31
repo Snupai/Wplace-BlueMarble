@@ -73,6 +73,9 @@ div#bm-overlay {
 /* The container for the overlay header */
 #bm-contain-header {
   margin-bottom: 0.5em;
+  display: flex;
+  align-items: center;
+  gap: 0.5ch;
 }
 
 /* When minimized, adjust header container */
