@@ -242,7 +242,7 @@ function observeBlack() {
  * Parent/child relationships in the DOM structure below are indicated by indentation.
  * @since 0.58.3
  */
-function buildOverlayMain() {
+async function buildOverlayMain() {
   let isMinimized = false; // Overlay state tracker (false = maximized, true = minimized)
   // Load last saved coordinates (if any)
   let savedCoords = {};
