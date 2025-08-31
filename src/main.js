@@ -912,12 +912,45 @@ async function buildOverlayMain() {
       }
 
       let blob = null, name = data.name || 'ExternalTemplate';
+
+      // Helper: robust Data URL -> Blob (avoids CORS/fetch issues)
+      const blobFromDataUrl = (du) => {
+        try {
+          if (typeof du !== 'string' || !du.startsWith('data:')) return null;
+          const comma = du.indexOf(',');
+          if (comma < 0) return null;
+          const meta = du.slice(0, comma);
+          const body = du.slice(comma + 1);
+          const m = /^data:([^;]*)(;base64)?/i.exec(meta);
+          const mime = (m && m[1]) ? m[1] : 'application/octet-stream';
+          const isB64 = !!(m && m[2]);
+          if (isB64) {
+            const bin = atob(body);
+            const len = bin.length;
+            const arr = new Uint8Array(len);
+            for (let i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
+            return new Blob([arr], { type: mime });
+          } else {
+            const text = decodeURIComponent(body);
+            return new Blob([text], { type: mime });
+          }
+        } catch (_) { return null; }
+      };
+
       if (data.blob instanceof Blob) {
         blob = data.blob;
-      } else if (data.dataUrl && typeof data.dataUrl === 'string') {
-        try { blob = await (await fetch(data.dataUrl)).blob(); } catch (e) {}
-      } else if (data.url && typeof data.url === 'string') {
-        try { blob = await (await fetch(data.url, { mode: 'cors' })).blob(); } catch (e) {}
+      }
+      // Prefer decoding dataUrl locally to avoid CORS
+      if (!blob && data.dataUrl && typeof data.dataUrl === 'string') {
+        blob = blobFromDataUrl(data.dataUrl);
+        if (!blob) {
+          // Fallback to fetch if decoding failed
+          try { blob = await (await fetch(data.dataUrl)).blob(); } catch (_) {}
+        }
+      }
+      // Remote URL: best-effort fetch (CORS required)
+      if (!blob && data.url && typeof data.url === 'string') {
+        try { blob = await (await fetch(data.url, { mode: 'cors' })).blob(); } catch (_) {}
       }
 
       if (!blob) {
