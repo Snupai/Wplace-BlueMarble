@@ -588,10 +588,10 @@ async function buildOverlayMain() {
                 instance.handleDisplayError('Coordinates are malformed! Did you try clicking on the canvas first?');
                 return;
               }
-              instance.updateInnerHTML('bm-input-tx', coords?.[0] || '');
-              instance.updateInnerHTML('bm-input-ty', coords?.[1] || '');
-              instance.updateInnerHTML('bm-input-px', coords?.[2] || '');
-              instance.updateInnerHTML('bm-input-py', coords?.[3] || '');
+              instance.updateInnerHTML('bm-input-tx', String(coords?.[0] ?? ''));
+              instance.updateInnerHTML('bm-input-ty', String(coords?.[1] ?? ''));
+              instance.updateInnerHTML('bm-input-px', String(coords?.[2] ?? ''));
+              instance.updateInnerHTML('bm-input-py', String(coords?.[3] ?? ''));
               persistCoords();
             }
           }
@@ -898,9 +898,23 @@ async function buildOverlayMain() {
       if ([tx, ty].every(Number.isFinite)) {
         overlayMain.updateInnerHTML('bm-input-tx', String(tx));
         overlayMain.updateInnerHTML('bm-input-ty', String(ty));
-        overlayMain.updateInnerHTML('bm-input-px', Number.isFinite(px) ? String(px) : '0');
-        overlayMain.updateInnerHTML('bm-input-py', Number.isFinite(py) ? String(py) : '0');
-        try { GM.setValue('bmCoords', JSON.stringify({tx,ty,px: Number.isFinite(px)?px:0, py: Number.isFinite(py)?py:0})); } catch (_) {}
+        // Only update px/py if provided; preserve existing values otherwise
+        if (Number.isFinite(px)) overlayMain.updateInnerHTML('bm-input-px', String(px));
+        if (Number.isFinite(py)) overlayMain.updateInnerHTML('bm-input-py', String(py));
+        try {
+          let prev = {};
+          try { prev = JSON.parse(GM_getValue('bmCoords', '{}')) || {}; } catch (_) { prev = {}; }
+          const currPxStr = document.querySelector('#bm-input-px')?.value;
+          const currPyStr = document.querySelector('#bm-input-py')?.value;
+          const currPxNum = (currPxStr !== undefined && currPxStr !== '') ? Number(currPxStr) : undefined;
+          const currPyNum = (currPyStr !== undefined && currPyStr !== '') ? Number(currPyStr) : undefined;
+          const outPx = Number.isFinite(px) ? px : (Number.isFinite(prev.px) ? prev.px : currPxNum);
+          const outPy = Number.isFinite(py) ? py : (Number.isFinite(prev.py) ? prev.py : currPyNum);
+          const persisted = { tx, ty };
+          if (Number.isFinite(outPx)) persisted.px = outPx;
+          if (Number.isFinite(outPy)) persisted.py = outPy;
+          GM.setValue('bmCoords', JSON.stringify(persisted));
+        } catch (_) {}
         overlayMain.handleDisplayStatus('Received coordinates from external site');
       } else {
         overlayMain.handleDisplayError('External coords malformed');
