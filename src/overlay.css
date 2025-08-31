@@ -157,6 +157,15 @@ div#bm-overlay {
   fill: #111;
 }
 
+/* Clipboard icons: keep them compact inside small buttons */
+#bm-button-paste-coords svg,
+#bm-button-paste-image svg {
+  width: 70%;
+  height: 70%;
+  display: block;
+  margin: 0 auto;
+}
+
 /* Container for action buttons, that is inside the action button container */
 div:has(> #bm-button-teleport) {
   display: flex;
