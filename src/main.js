@@ -914,6 +914,9 @@ async function buildOverlayMain() {
       let blob = null, name = data.name || 'ExternalTemplate';
       const aliasDataUrl = (data.dataUrl || data.dataURL || '');
       const aliasUrl = (data.url || data.imageUrl || data.href || data.src || '');
+      const aliasWidth = Number(data.width);
+      const aliasHeight = Number(data.height);
+      const aliasPixels = data.pixelData;
 
       // Helper: robust Data URL -> Blob (avoids CORS/fetch issues)
       const blobFromDataUrl = (du) => {
@@ -982,8 +985,33 @@ async function buildOverlayMain() {
         }
       }
 
+      // Fallback 3: Build from raw pixel data (width, height, pixelData of RGBA values)
+      if (!blob && Number.isFinite(aliasWidth) && Number.isFinite(aliasHeight) && aliasWidth > 0 && aliasHeight > 0 && aliasPixels) {
+        try {
+          const w = aliasWidth|0, h = aliasHeight|0;
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          const imgData = ctx.createImageData(w, h);
+          let src = aliasPixels;
+          if (Array.isArray(src)) src = Uint8ClampedArray.from(src);
+          if (!(src instanceof Uint8ClampedArray)) {
+            // Attempt to parse if it's a string like "Array[...]"
+            try { const parsed = JSON.parse(src); src = Uint8ClampedArray.from(parsed); } catch (_) {}
+          }
+          if (src && src.length >= w*h*4) {
+            imgData.data.set(src.subarray(0, w*h*4));
+            ctx.putImageData(imgData, 0, 0);
+            const du = canvas.toDataURL('image/png');
+            blob = blobFromDataUrl(du);
+          }
+        } catch (e) {
+          try { console.warn('Blue Marble: pixelData decode failed', e); } catch (_) {}
+        }
+      }
+
       if (!blob) {
-        try { console.warn('Blue Marble: failed to load external image', { aliasUrl, hasDataUrl: !!aliasDataUrl }); } catch (_) {}
+        try { console.warn('Blue Marble: failed to load external image', { aliasUrl, hasDataUrl: !!aliasDataUrl, hasPixels: !!aliasPixels, width: aliasWidth, height: aliasHeight }); } catch (_) {}
         overlayMain.handleDisplayError('External template image unavailable (CORS/format)');
         return;
       }
