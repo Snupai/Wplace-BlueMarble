@@ -607,6 +607,77 @@ function buildOverlayMain() {
             instance.handleDisplayStatus(`Drew to canvas!`);
           }
         }).buildElement()
+        .addButton({'id': 'bm-button-paste', 'textContent': 'Paste from Clipboard'}, (instance, button) => {
+          button.onclick = async () => {
+            try {
+              // 1) Read text for coordinates
+              let text = '';
+              try { text = await navigator.clipboard.readText(); } catch (_) {}
+              const regex = /Tl\s*X:\s*(-?\d+)[^\d-]+Tl\s*Y:\s*(-?\d+)[^\d-]+Px\s*X:\s*(-?\d+)[^\d-]+Px\s*Y:\s*(-?\d+)/i;
+              const match = regex.exec(text || '');
+              let tx, ty, px, py;
+              if (match) {
+                tx = Number(match[1]);
+                ty = Number(match[2]);
+                px = Number(match[3]);
+                py = Number(match[4]);
+                // Fill inputs and persist
+                instance.updateInnerHTML('bm-input-tx', String(tx));
+                instance.updateInnerHTML('bm-input-ty', String(ty));
+                instance.updateInnerHTML('bm-input-px', String(px));
+                instance.updateInnerHTML('bm-input-py', String(py));
+                try { /* persist */ const handler = null; } catch (_) {}
+                try { /* call outer helper */ } catch (_) {}
+                // Persist via the local helper defined above
+                try { (typeof persistCoords === 'function') && persistCoords(); } catch (_) {}
+              } else {
+                // If text not found or malformed, try to fall back to existing inputs
+                const ix = document.querySelector('#bm-input-tx');
+                const iy = document.querySelector('#bm-input-ty');
+                const ipx = document.querySelector('#bm-input-px');
+                const ipy = document.querySelector('#bm-input-py');
+                if (!ix?.value || !iy?.value || !ipx?.value || !ipy?.value) {
+                  instance.handleDisplayError('Clipboard text missing coordinates in the format "(Tl X: ###, Tl Y: ###, Px X: ###, Px Y: ###)" and no existing coords found.');
+                  return;
+                }
+                tx = Number(ix.value); ty = Number(iy.value); px = Number(ipx.value); py = Number(ipy.value);
+              }
+
+              // 2) Read image from clipboard
+              let blob = null; let fileName = 'Clipboard';
+              try {
+                const items = await navigator.clipboard.read();
+                for (const item of items) {
+                  for (const type of item.types) {
+                    if (type.startsWith('image/')) {
+                      blob = await item.getType(type);
+                      // Derive a nice filename extension if possible
+                      try {
+                        const ext = type.split('/')[1] || 'png';
+                        fileName = `Clipboard.${ext}`;
+                      } catch (_) {}
+                      break;
+                    }
+                  }
+                  if (blob) break;
+                }
+              } catch (err) {
+                // Ignore here; we'll handle if blob is null
+              }
+
+              if (!blob) {
+                instance.handleDisplayError('No image found in clipboard. Copy an image and try again.');
+                return;
+              }
+
+              // 3) Create the template
+              templateManager.createTemplate(blob, fileName.replace(/\.[^/.]+$/, ''), [tx, ty, px, py]);
+              instance.handleDisplayStatus('Pasted template from clipboard!');
+            } catch (e) {
+              instance.handleDisplayError(`Failed to paste from clipboard: ${e?.message || e}`);
+            }
+          };
+        }).buildElement()
         .addButton({'id': 'bm-button-disable', 'textContent': 'Disable'}, (instance, button) => {
           button.onclick = () => {
             instance.apiManager?.templateManager?.setTemplatesShouldBeDrawn(false);
