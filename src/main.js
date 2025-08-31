@@ -249,12 +249,21 @@ async function buildOverlayMain() {
   try { savedCoords = JSON.parse(GM_getValue('bmCoords', '{}')) || {}; } catch (_) { savedCoords = {}; }
   const persistCoords = () => {
     try {
-      const tx = Number(document.querySelector('#bm-input-tx')?.value || '');
-      const ty = Number(document.querySelector('#bm-input-ty')?.value || '');
-      const px = Number(document.querySelector('#bm-input-px')?.value || '');
-      const py = Number(document.querySelector('#bm-input-py')?.value || '');
-      const data = { tx, ty, px, py };
-      GM.setValue('bmCoords', JSON.stringify(data));
+      const sTx = document.querySelector('#bm-input-tx')?.value;
+      const sTy = document.querySelector('#bm-input-ty')?.value;
+      const sPx = document.querySelector('#bm-input-px')?.value;
+      const sPy = document.querySelector('#bm-input-py')?.value;
+
+      const updates = {};
+      if (sTx !== undefined && sTx !== '') { const n = Number(sTx); if (Number.isFinite(n)) updates.tx = n; }
+      if (sTy !== undefined && sTy !== '') { const n = Number(sTy); if (Number.isFinite(n)) updates.ty = n; }
+      if (sPx !== undefined && sPx !== '') { const n = Number(sPx); if (Number.isFinite(n)) updates.px = n; }
+      if (sPy !== undefined && sPy !== '') { const n = Number(sPy); if (Number.isFinite(n)) updates.py = n; }
+
+      let prev = {};
+      try { prev = JSON.parse(GM_getValue('bmCoords', '{}')) || {}; } catch (_) { prev = {}; }
+      const merged = { ...prev, ...updates };
+      GM.setValue('bmCoords', JSON.stringify(merged));
     } catch (_) {}
   };
   
