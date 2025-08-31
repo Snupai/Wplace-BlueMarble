@@ -1178,7 +1178,16 @@ async function buildOverlayMain() {
   } catch (_) {}
 
   // Convenience: allow manual injection via DevTools
+  // Note: Assigning directly in the userscript sandbox may not expose the function
+  // to the page context in all browsers. Keep a local alias and also inject into
+  // the page so calling it from DevTools works consistently.
   window.BM_receiveExternal = (payload) => window.postMessage(Object.assign({ source: 'blue-marble-external' }, payload), '*');
+  try {
+    inject(() => {
+      // Expose a page-context helper for sending messages to Blue Marble
+      window.BM_receiveExternal = (payload) => window.postMessage(Object.assign({ source: 'blue-marble-external' }, payload), '*');
+    });
+  } catch (_) {}
 
   // Notify opener (e.g., your gallery) that Blue Marble is ready to receive
   try { window.opener && window.opener.postMessage({ source: 'blue-marble', type: 'ready' }, '*'); } catch (_) {}
