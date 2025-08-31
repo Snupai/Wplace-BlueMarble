@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Blue Marble
 // @namespace    https://github.com/Snupai/
-// @version      0.96.0
+// @version      0.97.0
 // @description  A userscript to automate and/or enhance the user experience on Wplace.live. Make sure to comply with the site's Terms of Service, and rules! This script is not affiliated with Wplace.live in any way, use at your own risk. This script is not affiliated with TamperMonkey. The author of this userscript is not responsible for any damages, issues, loss of data, or punishment that may occur as a result of using this script. This script is provided "as is" under the MPL-2.0 license. The "Blue Marble" icon is licensed under CC0 1.0 Universal (CC0 1.0) Public Domain Dedication. The image is owned by NASA.
 // @author       Snupai
 // @license      MPL-2.0
 // @supportURL   https://discord.gg/tpeBPy46hf
 // @homepageURL  https://bluemarble.camilledaguin.fr/
-// @icon         https://raw.githubusercontent.com/Snupai/Wplace-BlueMarble/aef230dcfd42e90c91264877deaeb46e92ccfe46/dist/assets/Favicon.png
+// @icon         https://raw.githubusercontent.com/Snupai/Wplace-BlueMarble/1e6004bda0dd79e7fa7ac31875a7991f97013d99/dist/assets/Favicon.png
 // @updateURL    https://raw.githubusercontent.com/Snupai/Wplace-BlueMarble/main/dist/BlueMarble.user.js
 // @downloadURL  https://raw.githubusercontent.com/Snupai/Wplace-BlueMarble/main/dist/BlueMarble.user.js
 // @match        https://wplace.live/*
@@ -15,7 +15,7 @@
 // @grant        GM_addStyle
 // @grant        GM.setValue
 // @grant        GM_getValue
-// @resource     CSS-BM-File https://raw.githubusercontent.com/Snupai/Wplace-BlueMarble/aef230dcfd42e90c91264877deaeb46e92ccfe46/dist/BlueMarble.user.css
+// @resource     CSS-BM-File https://raw.githubusercontent.com/Snupai/Wplace-BlueMarble/1e6004bda0dd79e7fa7ac31875a7991f97013d99/dist/BlueMarble.user.css
 // ==/UserScript==
 
 // Wplace  --> https://wplace.live
