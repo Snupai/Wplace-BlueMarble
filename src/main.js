@@ -6,7 +6,7 @@ import Overlay from './Overlay.js';
 import Observers from './observers.js';
 import ApiManager from './apiManager.js';
 import TemplateManager from './templateManager.js';
-import { consoleLog, consoleWarn, selectAllCoordinateInputs } from './utils.js';
+import { consoleLog, consoleWarn, selectAllCoordinateInputs, colorpalette } from './utils.js';
 
 const name = GM_info.script.name.toString(); // Name of userscript
 const version = GM_info.script.version.toString(); // Version of userscript
@@ -727,25 +727,34 @@ async function buildOverlayMain() {
               const maxPy = Math.max(py1, py2);
               const width = maxPx - minPx + 1;
               const height = maxPy - minPy + 1;
-              const tileSelector = `/tiles/${String(tx1).padStart(4,'0')}/${String(ty1).padStart(4,'0')}`;
-              const tileEl = Array.from(document.querySelectorAll('img')).find(img => img.src.includes(tileSelector));
-              if (!tileEl) {
-                throw new Error('Tile not found in DOM');
-              }
-              // Reload the tile via a new Image element to ensure decodability
-              const tileImg = new Image();
-              tileImg.crossOrigin = 'anonymous';
-              tileImg.src = tileEl.src;
-              if (!tileImg.complete || tileImg.naturalWidth === 0) {
-                await new Promise((resolve, reject) => {
-                  tileImg.addEventListener('load', () => resolve(), { once: true });
-                  tileImg.addEventListener('error', () => reject(new Error('Tile image failed to load')), { once: true });
-                });
-              }
               const canvas = document.createElement('canvas');
               canvas.width = width; canvas.height = height;
               const ctx = canvas.getContext('2d');
-              ctx.drawImage(tileImg, -minPx, -minPy);
+              const imgData = ctx.createImageData(width, height);
+
+              // Helper to map color id to rgb
+              const idToRGB = new Map(colorpalette.map(c => [c.id, c.rgb]));
+
+              // Fetch each pixel color individually
+              for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                  const absX = minPx + x;
+                  const absY = minPy + y;
+                  const endpoint = `https://backend.wplace.live/s0/pixel/${tx1}/${ty1}?x=${absX}&y=${absY}`;
+                  const resp = await fetch(endpoint);
+                  if (!resp.ok) { throw new Error('Pixel fetch failed'); }
+                  const data = await resp.json();
+                  const colorID = data?.color ?? data?.data?.color ?? 0;
+                  const rgb = idToRGB.get(colorID) || [0, 0, 0];
+                  const idx = (y * width + x) * 4;
+                  imgData.data[idx] = rgb[0];
+                  imgData.data[idx + 1] = rgb[1];
+                  imgData.data[idx + 2] = rgb[2];
+                  imgData.data[idx + 3] = colorID === 0 ? 0 : 255;
+                }
+              }
+
+              ctx.putImageData(imgData, 0, 0);
               const areaBlob = await new Promise((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas is empty')), 'image/png'));
               templateManager.createTemplate(areaBlob, 'captured-area', [tx1, ty1, minPx, minPy]);
               instance.handleDisplayStatus('Captured area template!');
