@@ -743,18 +743,30 @@ async function buildOverlayMain() {
               tileCanvas.height = (endTileY - startTileY + 1) * tileSize;
               const tileCtx = tileCanvas.getContext('2d');
 
+              const getTileElement = (() => {
+                const cache = new Map();
+                return (x, y) => {
+                  const key = `${x},${y}`;
+                  let img = cache.get(key);
+                  if (!img) {
+                    document.querySelectorAll('img[src*="/tiles/"]').forEach(el => {
+                      const match = el.src.match(/\/tiles\/(\d+)\/(\d+)\.png/);
+                      if (match) {
+                        cache.set(`${Number(match[1])},${Number(match[2])}`, el);
+                      }
+                    });
+                    img = cache.get(key);
+                  }
+                  return img || null;
+                };
+              })();
+
               for (let tx = startTileX; tx <= endTileX; tx++) {
                 for (let ty = startTileY; ty <= endTileY; ty++) {
-                  const paddedX = String(tx).padStart(4, '0');
-                  const paddedY = String(ty).padStart(4, '0');
-                  const selector = [
-                    `img[src*="/tiles/${paddedX}/${paddedY}.png"]`,
-                    `img[src*="/tiles/${paddedX}/${ty}.png"]`,
-                    `img[src*="/tiles/${tx}/${paddedY}.png"]`,
-                    `img[src*="/tiles/${tx}/${ty}.png"]`
-                  ].join(',');
-                  const imgElem = /** @type {?HTMLImageElement} */ (document.querySelector(selector));
+                  const imgElem = /** @type {?HTMLImageElement} */ (getTileElement(tx, ty));
                   if (!(imgElem instanceof HTMLImageElement)) {
+                    const paddedX = String(tx).padStart(4, '0');
+                    const paddedY = String(ty).padStart(4, '0');
                     throw new Error(`Tile not found in DOM: ${paddedX}/${paddedY}`);
                   }
 
