@@ -162,7 +162,7 @@ GM_addStyle(cssOverlay);
 
 // Imports the Roboto Mono font family
 var stylesheetLink = document.createElement('link');
-stylesheetLink.href = 'https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap';
+stylesheetLink.href = 'Inter:ital,opsz,wght@0,100..700;1,100..700&display=swap';
 stylesheetLink.rel = 'preload';
 stylesheetLink.as = 'style';
 stylesheetLink.onload = function () {
@@ -270,7 +270,7 @@ async function buildOverlayMain() {
   overlayMain.addDiv({'id': 'bm-overlay', 'style': 'position: fixed; z-index: 2147483647; top: 10px; right: 75px;'})
       .addDiv({'id': 'bm-contain-header'})
       .addDiv({'id': 'bm-bar-drag'}).buildElement()
-      .addImg({'id': 'bm-button-logo', 'alt': 'earthrise Icon - Click to minimize/maximize', 'src': 'https://raw.githubusercontent.com/SwingTheVine/Wplace-BlueMarble/main/dist/assets/Favicon.png', 'style': 'cursor: pointer;'},
+      .addImg({'id': 'bm-button-logo', 'alt': 'earthrise Icon - Click to minimize/maximize', 'src': 'https://raw.githubusercontent.com/Snupai/earthrise/ab89f262e9364c8b87607c57744fce244bdb2666/dist/assets/Favicon.png', 'style': 'cursor: pointer;'},
         (instance, img) => {
           /** Click event handler for overlay minimize/maximize functionality.
            * 
@@ -1025,7 +1025,7 @@ async function buildOverlayMain() {
           .addButton({'id': 'bm-button-website', 'className': 'bm-help', 'innerHTML': '🌐', 'title': 'Official earthrise Website'},
             (instance, button) => {
             button.addEventListener('click', () => {
-              window.open('https://bluemarble.camilledaguin.fr/', '_blank', 'noopener noreferrer');
+              window.open('https://myrai.net/wpkl', '_blank', 'noopener noreferrer');
             });
           }).buildElement()
         .buildElement()
