@@ -728,25 +728,27 @@ async function buildOverlayMain() {
               const maxPy = Math.max(py1, py2);
               const width = maxPx - minPx + 1;
               const height = maxPy - minPy + 1;
-                const resp = await fetch(`/api/files/s0/tiles/${tx1}/${ty1}/0.png`);
-                if (!resp.ok) {
-                  throw new Error(`Failed to fetch tile: ${resp.status}`);
-                }
-                const tileBlob = await resp.blob();
-                const img = new Image();
-                img.src = URL.createObjectURL(tileBlob);
-                await img.decode();
-                const canvas = document.createElement('canvas');
-                canvas.width = width; canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, -minPx, -minPy);
-                URL.revokeObjectURL(img.src);
-                const areaBlob = await new Promise((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas is empty')), 'image/png'));
-                templateManager.createTemplate(areaBlob, 'captured-area', [tx1, ty1, minPx, minPy]);
-                instance.handleDisplayStatus('Captured area template!');
-                } catch (e) {
-                  instance.handleDisplayError(`Failed to capture area: ${e?.message || e}`);
-                }
+              const tileSelector = `/tiles/${tx1}/${ty1}/`;
+              const tileImg = Array.from(document.querySelectorAll('img')).find(img => img.src.includes(tileSelector));
+              if (!tileImg) {
+                throw new Error('Tile not found in DOM');
+              }
+              if (!tileImg.complete || tileImg.naturalWidth === 0) {
+                await new Promise((resolve, reject) => {
+                  tileImg.addEventListener('load', () => resolve(), { once: true });
+                  tileImg.addEventListener('error', () => reject(new Error('Tile image failed to load')), { once: true });
+                });
+              }
+              const canvas = document.createElement('canvas');
+              canvas.width = width; canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(tileImg, -minPx, -minPy);
+              const areaBlob = await new Promise((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas is empty')), 'image/png'));
+              templateManager.createTemplate(areaBlob, 'captured-area', [tx1, ty1, minPx, minPy]);
+              instance.handleDisplayStatus('Captured area template!');
+            } catch (e) {
+              instance.handleDisplayError(`Failed to capture area: ${e?.message || e}`);
+            }
           };
         }).buildElement()
       .buildElement()
