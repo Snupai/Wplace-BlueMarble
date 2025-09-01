@@ -188,8 +188,6 @@ const userSettings = JSON.parse(GM_getValue('bmUserSettings', '{}')); // Loads t
 
 buildOverlayMain(); // Builds the main overlay
 
-overlayMain.handleDrag('#bm-overlay', '#bm-bar-drag'); // Creates dragging capability on the drag bar for dragging the overlay
-
 apiManager.spontaneousResponseListener(overlayMain); // Reads spontaneous fetch responces
 
 observeBlack(); // Observes the black palette color
@@ -242,7 +240,44 @@ function observeBlack() {
  * @since 0.58.3
  */
 async function buildOverlayMain() {
+  const overlayStateKey = 'bmOverlayState';
+  let overlayState = {};
+  try { overlayState = JSON.parse(localStorage.getItem(overlayStateKey)) || {}; } catch (_) { overlayState = {}; }
   let isMinimized = false; // Overlay state tracker (false = maximized, true = minimized)
+
+  const saveOverlayState = (x, y) => {
+    try {
+      const overlay = document.querySelector('#bm-overlay');
+      if (!overlay) return;
+      let nx = x, ny = y;
+      if (typeof nx !== 'number' || typeof ny !== 'number') {
+        const transform = window.getComputedStyle(overlay).transform;
+        if (transform && transform !== 'none') {
+          const m = new DOMMatrix(transform);
+          nx = m.m41; ny = m.m42;
+        } else {
+          const rect = overlay.getBoundingClientRect();
+          nx = rect.left; ny = rect.top;
+        }
+      }
+      overlayState = { minimized: isMinimized, x: nx, y: ny };
+      localStorage.setItem(overlayStateKey, JSON.stringify(overlayState));
+    } catch (_) {}
+  };
+
+  const restoreOverlayPosition = () => {
+    try {
+      const overlay = document.querySelector('#bm-overlay');
+      if (!overlay) return;
+      if (Number.isFinite(overlayState.x) && Number.isFinite(overlayState.y)) {
+        overlay.style.transform = `translate(${overlayState.x}px, ${overlayState.y}px)`;
+        overlay.style.left = '0px';
+        overlay.style.top = '0px';
+        overlay.style.right = '';
+      }
+    } catch (_) {}
+  };
+
   // Load last saved coordinates (if any)
   let savedCoords = {};
   try { savedCoords = JSON.parse(GM_getValue('bmCoords', '{}')) || {}; } catch (_) { savedCoords = {}; }
@@ -342,6 +377,7 @@ async function buildOverlayMain() {
               } catch (_) {}
               // restore transition
               overlayEl.style.transition = '';
+              saveOverlayState();
             };
             miniDownHandler = onDown;
             miniMoveHandler = onMove;
@@ -569,11 +605,12 @@ async function buildOverlayMain() {
             // Update accessibility information for screen readers and tooltips
             
             // Update alt text to reflect current state for screen readers and tooltips
-            img.alt = isMinimized ? 
+            img.alt = isMinimized ?
               'earthrise Icon - Minimized (Click to maximize)' :
               'earthrise Icon - Maximized (Click to minimize)';
-            
+
             // No status message needed - state change is visually obvious to users
+            saveOverlayState();
           });
         }
       ).buildElement()
@@ -1033,6 +1070,11 @@ async function buildOverlayMain() {
         .buildElement()
       .buildElement()
   .buildOverlay(document.body);
+  restoreOverlayPosition();
+  overlayMain.handleDrag('#bm-overlay', '#bm-bar-drag', (x, y) => { saveOverlayState(x, y); });
+  if (overlayState.minimized) {
+    try { document.getElementById('bm-button-logo')?.click(); } catch (_) {}
+  }
 
   // ------- External integration: accept messages from other sites -------
   // Queue messages until overlay/templateManager is ready
