@@ -705,18 +705,16 @@ async function buildOverlayMain() {
         .addButton({'id': 'bm-button-save-area', 'textContent': 'Save Area'}, (instance, button) => {
           button.onclick = async () => {
             try {
-              const tx1 = Number(document.querySelector('#bm-input-tx')?.value);
-              const ty1 = Number(document.querySelector('#bm-input-ty')?.value);
-              const px1 = Number(document.querySelector('#bm-input-px')?.value);
-              const py1 = Number(document.querySelector('#bm-input-py')?.value);
-              const tx2 = Number(document.querySelector('#bm-input2-tx')?.value);
-              const ty2 = Number(document.querySelector('#bm-input2-ty')?.value);
-              const px2 = Number(document.querySelector('#bm-input2-px')?.value);
-              const py2 = Number(document.querySelector('#bm-input2-py')?.value);
-              if ([tx1, ty1, px1, py1, tx2, ty2, px2, py2].some(n => !Number.isFinite(n))) {
+              const coordSelectors = [
+                '#bm-input-tx', '#bm-input-ty', '#bm-input-px', '#bm-input-py',
+                '#bm-input2-tx', '#bm-input2-ty', '#bm-input2-px', '#bm-input2-py'
+              ];
+              const coordInputs = coordSelectors.map(sel => /** @type {?HTMLInputElement} */ (document.querySelector(sel)));
+              if (coordInputs.some(inp => !(inp instanceof HTMLInputElement) || inp.value === '' || !Number.isFinite(Number(inp.value)))) {
                 instance.handleDisplayError('Coordinates are malformed!');
                 return;
               }
+              const [tx1, ty1, px1, py1, tx2, ty2, px2, py2] = coordInputs.map(inp => Number(inp.value));
               const tileSize = templateManager.tileSize || 1000;
 
               // Convert both points to absolute pixel coordinates on the board
@@ -749,7 +747,12 @@ async function buildOverlayMain() {
                 for (let ty = startTileY; ty <= endTileY; ty++) {
                   const paddedX = String(tx).padStart(4, '0');
                   const paddedY = String(ty).padStart(4, '0');
-                  const selector = `img[src*="/tiles/${paddedX}/${paddedY}.png"]`;
+                  const selector = [
+                    `img[src*="/tiles/${paddedX}/${paddedY}.png"]`,
+                    `img[src*="/tiles/${paddedX}/${ty}.png"]`,
+                    `img[src*="/tiles/${tx}/${paddedY}.png"]`,
+                    `img[src*="/tiles/${tx}/${ty}.png"]`
+                  ].join(',');
                   const imgElem = /** @type {?HTMLImageElement} */ (document.querySelector(selector));
                   if (!(imgElem instanceof HTMLImageElement)) {
                     throw new Error(`Tile not found in DOM: ${paddedX}/${paddedY}`);
