@@ -40,16 +40,15 @@ inject(() => {
   window.addEventListener('message', (event) => {
     const { source, endpoint, blobID, blobData, blink } = event.data;
 
-    const elapsed = Date.now() - blink;
+    // Only handle messages meant for blob processing
+    if ((source === 'blue-marble') && !!blobID && !!blobData && !endpoint) {
+      const elapsed = Date.now() - blink;
 
-    // Since this code does not run in the userscript, we can't use consoleLog().
-    console.groupCollapsed(`%c${name}%c: ${fetchedBlobQueue.size} Recieved IMAGE message about blob "${blobID}"`, consoleStyle, '');
-    console.log(`Blob fetch took %c${String(Math.floor(elapsed/60000)).padStart(2,'0')}:${String(Math.floor(elapsed/1000) % 60).padStart(2,'0')}.${String(elapsed % 1000).padStart(3,'0')}%c MM:SS.mmm`, consoleStyle, '');
-    console.log(fetchedBlobQueue);
-    console.groupEnd();
-
-    // The modified blob won't have an endpoint, so we ignore any message without one.
-    if ((source == 'blue-marble') && !!blobID && !!blobData && !endpoint) {
+      // Since this code does not run in the userscript, we can't use consoleLog().
+      console.groupCollapsed(`%c${name}%c: ${fetchedBlobQueue.size} Recieved IMAGE message about blob "${blobID}"`, consoleStyle, '');
+      console.log(`Blob fetch took %c${String(Math.floor(elapsed/60000)).padStart(2,'0')}:${String(Math.floor(elapsed/1000) % 60).padStart(2,'0')}.${String(elapsed % 1000).padStart(3,'0')}%c MM:SS.mmm`, consoleStyle, '');
+      console.log(fetchedBlobQueue);
+      console.groupEnd();
 
       const callback = fetchedBlobQueue.get(blobID); // Retrieves the blob based on the UUID
 
@@ -728,11 +727,15 @@ async function buildOverlayMain() {
               const maxPy = Math.max(py1, py2);
               const width = maxPx - minPx + 1;
               const height = maxPy - minPy + 1;
-              const tileSelector = `/tiles/${tx1}/${ty1}/`;
-              const tileImg = Array.from(document.querySelectorAll('img')).find(img => img.src.includes(tileSelector));
-              if (!tileImg) {
+              const tileSelector = `/tiles/${String(tx1).padStart(4,'0')}/${String(ty1).padStart(4,'0')}`;
+              const tileEl = Array.from(document.querySelectorAll('img')).find(img => img.src.includes(tileSelector));
+              if (!tileEl) {
                 throw new Error('Tile not found in DOM');
               }
+              // Reload the tile via a new Image element to ensure decodability
+              const tileImg = new Image();
+              tileImg.crossOrigin = 'anonymous';
+              tileImg.src = tileEl.src;
               if (!tileImg.complete || tileImg.naturalWidth === 0) {
                 await new Promise((resolve, reject) => {
                   tileImg.addEventListener('load', () => resolve(), { once: true });
