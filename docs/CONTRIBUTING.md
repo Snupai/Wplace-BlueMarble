@@ -1,7 +1,7 @@
 <table>
   <tr>
     <td><a href="#contributing">Contributing</a></td>
-    <td valign="top" rowspan="99"><a href="https://discord.gg/tpeBPy46hf"><img alt="Discord Banner" src="https://discord.com/api/guilds/796124137042608188/widget.png?style=banner4"></a></td>
+    <td valign="top" rowspan="99"><a href="https://myrai.net/wpkl"></a></td>
   </tr>
   <tr>
     <td>&emsp;<a href="#summary">Summary</a></td>
@@ -48,7 +48,7 @@
 </table>
 
 <h1>Contributing</h1>
-<a href="https://github.com/SwingTheVine/Wplace-BlueMarble/blob/main/LICENSE.txt" target="_blank" rel="noopener noreferrer"><img alt="Software License: MPL-2.0" src="https://img.shields.io/badge/Software_License-MPL--2.0-slateblue?style=flat"></a>
+<a href="https://github.com/Snupai/earthrise/blob/main/LICENSE.txt" target="_blank" rel="noopener noreferrer"><img alt="Software License: MPL-2.0" src="https://img.shields.io/badge/Software_License-MPL--2.0-slateblue?style=flat"></a>
 <p>
   Thank you for wanting to contribute to the userscript "Blue Marble"! It means a lot to me that someone likes my project enough to want to help it grow. If you haven't already done so, consider joining our Discord. You can ask questions about the userscript there and receive feedback. You can also visit the <a href="https://bluemarble.camilledaguin.fr/" target="_blank" rel="noopener noreferrer">official Blue Marble website</a> for more information.
   <br>
@@ -103,7 +103,7 @@
 
 <h2>What Can I Not Do?</h2>
 <p>
-  Please do not use <a href="https://github.com/SwingTheVine/Wplace-BlueMarble/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a> for asking support questions (e.g. "How do I install this?" or "What does <code>cssMangler</code> do?"). We use the GitHub issue tracker for bug reports and feature requests. If you are having trouble and need help, ask on our <a href="https://discord.gg/tpeBPy46hf" target="_blank" rel="noopener noreferrer">Discord</a>. <b>However, you <i>should</i> make a feature request on our issue tracker before starting work on your contribution.</b> Nothing sucks more than working hard on a high-quality contribution just for it to be rejected because it does not align with the mission of the mod. Ask first!
+  Please do not use <a href="https://github.com/Snupai/earthrise/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a> for asking support questions (e.g. "How do I install this?" or "What does <code>cssMangler</code> do?"). We use the GitHub issue tracker for bug reports and feature requests. If you are having trouble and need help, ask on our <a href="https://discord.gg/tpeBPy46hf" target="_blank" rel="noopener noreferrer">Discord</a>. <b>However, you <i>should</i> make a feature request on our issue tracker before starting work on your contribution.</b> Nothing sucks more than working hard on a high-quality contribution just for it to be rejected because it does not align with the mission of the mod. Ask first!
 </p>
 <p>
   Please contribute in good faith. We will reject pull requests with bad code, comments, or pull requests that damage the mod. 
@@ -111,7 +111,7 @@
 
 <h2>Guidelines</h2>
 <ul>
-  <li>Always submit a <a href="https://github.com/SwingTheVine/Wplace-BlueMarble/issues/new/choose" target="_blank" rel="noopener noreferrer">feature request</a> and receive authorization to work on your contribution <i>before</i> you start working on your contribution. This will save you time if we end up rejecting the contribution. Small contributions (like fixing spelling errors) don't need a feature request.</li>
+  <li>Always submit a <a href="https://github.com/Snupai/earthrise/issues/new/choose" target="_blank" rel="noopener noreferrer">feature request</a> and receive authorization to work on your contribution <i>before</i> you start working on your contribution. This will save you time if we end up rejecting the contribution. Small contributions (like fixing spelling errors) don't need a feature request.</li>
   <li>Follow the <a href="https://github.com/SwingTheVine/.github/blob/main/CODE_OF_CONDUCT.md" target="_blank" rel="noopener noreferrer">Code of Conduct</a>. This includes both your contributions and the way you interact with this community.</li>
   <li>Always write a clear message that explains the changes. "Added some things" does <i>not</i> explain what was changed.</li>
   <li>Different feature, different pull request. If you submit a pull request for templates and localization (i18n) together, and we want to reject the localization, your template code is rejected along with the localization since they are the same pull request. They should be separate pull requests since they are separate features.</li>
@@ -138,8 +138,8 @@
 <h2>How To Contribute</h2>
 <p>
   <ol>
-    <li>Read all of the <a href="https://github.com/SwingTheVine/Wplace-BlueMarble/blob/main/docs/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">contributing guidelines</a>.</li>
-    <li>If you would like to contribute, submit a request <a href="https://github.com/SwingTheVine/Wplace-BlueMarble/issues/new/choose" target="_blank" rel="noopener noreferrer">here</a>.</li>
+    <li>Read all of the <a href="https://github.com/Snupai/earthrise/blob/main/docs/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">contributing guidelines</a>.</li>
+    <li>If you would like to contribute, submit a request <a href="https://github.com/Snupai/earthrise/issues/new/choose" target="_blank" rel="noopener noreferrer">here</a>.</li>
     <li>If you have received authorization to start working on your contribution, set up the development environment on your device.</li>
     <li>Fork the project.</li>
     <li>Download your fork to the development environment.</li>
