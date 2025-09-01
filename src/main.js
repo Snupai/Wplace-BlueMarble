@@ -6,7 +6,7 @@ import Overlay from './Overlay.js';
 import Observers from './observers.js';
 import ApiManager from './apiManager.js';
 import TemplateManager from './templateManager.js';
-import { consoleLog, consoleWarn, selectAllCoordinateInputs } from './utils.js';
+import { consoleLog, consoleWarn, selectAllCoordinateInputs, colorpalette } from './utils.js';
 
 const name = GM_info.script.name.toString(); // Name of userscript
 const version = GM_info.script.version.toString(); // Version of userscript
@@ -40,16 +40,15 @@ inject(() => {
   window.addEventListener('message', (event) => {
     const { source, endpoint, blobID, blobData, blink } = event.data;
 
-    const elapsed = Date.now() - blink;
+    // Only handle messages meant for blob processing
+    if ((source === 'blue-marble') && !!blobID && !!blobData && !endpoint) {
+      const elapsed = Date.now() - blink;
 
-    // Since this code does not run in the userscript, we can't use consoleLog().
-    console.groupCollapsed(`%c${name}%c: ${fetchedBlobQueue.size} Recieved IMAGE message about blob "${blobID}"`, consoleStyle, '');
-    console.log(`Blob fetch took %c${String(Math.floor(elapsed/60000)).padStart(2,'0')}:${String(Math.floor(elapsed/1000) % 60).padStart(2,'0')}.${String(elapsed % 1000).padStart(3,'0')}%c MM:SS.mmm`, consoleStyle, '');
-    console.log(fetchedBlobQueue);
-    console.groupEnd();
-
-    // The modified blob won't have an endpoint, so we ignore any message without one.
-    if ((source == 'blue-marble') && !!blobID && !!blobData && !endpoint) {
+      // Since this code does not run in the userscript, we can't use consoleLog().
+      console.groupCollapsed(`%c${name}%c: ${fetchedBlobQueue.size} Recieved IMAGE message about blob "${blobID}"`, consoleStyle, '');
+      console.log(`Blob fetch took %c${String(Math.floor(elapsed/60000)).padStart(2,'0')}:${String(Math.floor(elapsed/1000) % 60).padStart(2,'0')}.${String(elapsed % 1000).padStart(3,'0')}%c MM:SS.mmm`, consoleStyle, '');
+      console.log(fetchedBlobQueue);
+      console.groupEnd();
 
       const callback = fetchedBlobQueue.get(blobID); // Retrieves the blob based on the UUID
 
@@ -706,38 +705,110 @@ async function buildOverlayMain() {
         .addButton({'id': 'bm-button-save-area', 'textContent': 'Save Area'}, (instance, button) => {
           button.onclick = async () => {
             try {
-              const tx1 = Number(document.querySelector('#bm-input-tx')?.value);
-              const ty1 = Number(document.querySelector('#bm-input-ty')?.value);
-              const px1 = Number(document.querySelector('#bm-input-px')?.value);
-              const py1 = Number(document.querySelector('#bm-input-py')?.value);
-              const tx2 = Number(document.querySelector('#bm-input2-tx')?.value);
-              const ty2 = Number(document.querySelector('#bm-input2-ty')?.value);
-              const px2 = Number(document.querySelector('#bm-input2-px')?.value);
-              const py2 = Number(document.querySelector('#bm-input2-py')?.value);
-              if ([tx1, ty1, px1, py1, tx2, ty2, px2, py2].some(n => !Number.isFinite(n))) {
+              const coordSelectors = [
+                '#bm-input-tx', '#bm-input-ty', '#bm-input-px', '#bm-input-py',
+                '#bm-input2-tx', '#bm-input2-ty', '#bm-input2-px', '#bm-input2-py'
+              ];
+              const coordInputs = coordSelectors.map(sel => /** @type {?HTMLInputElement} */ (document.querySelector(sel)));
+              if (coordInputs.some(inp => !(inp instanceof HTMLInputElement) || inp.value === '' || !Number.isFinite(Number(inp.value)))) {
                 instance.handleDisplayError('Coordinates are malformed!');
                 return;
               }
-              if (tx1 !== tx2 || ty1 !== ty2) {
-                instance.handleDisplayError('Area capture across tiles not supported');
-                return;
+              const [tx1, ty1, px1, py1, tx2, ty2, px2, py2] = coordInputs.map(inp => Number(inp.value));
+              const tileSize = templateManager.tileSize || 1000;
+
+              // Convert both points to absolute pixel coordinates on the board
+              const gx1 = tx1 * tileSize + px1;
+              const gy1 = ty1 * tileSize + py1;
+              const gx2 = tx2 * tileSize + px2;
+              const gy2 = ty2 * tileSize + py2;
+
+              const minGx = Math.min(gx1, gx2);
+              const minGy = Math.min(gy1, gy2);
+              const maxGx = Math.max(gx1, gx2);
+              const maxGy = Math.max(gy1, gy2);
+
+              const width = maxGx - minGx + 1;
+              const height = maxGy - minGy + 1;
+
+              // Determine which tiles are needed
+              const startTileX = Math.floor(minGx / tileSize);
+              const startTileY = Math.floor(minGy / tileSize);
+              const endTileX = Math.floor(maxGx / tileSize);
+              const endTileY = Math.floor(maxGy / tileSize);
+
+              // Draw required tiles into an offscreen canvas
+              const tileCanvas = document.createElement('canvas');
+              tileCanvas.width = (endTileX - startTileX + 1) * tileSize;
+              tileCanvas.height = (endTileY - startTileY + 1) * tileSize;
+              const tileCtx = tileCanvas.getContext('2d');
+
+              const getTileImage = async (x, y) => {
+                const blob = apiManager?.tileBlobs?.get(`${x},${y}`);
+                if (!(blob instanceof Blob)) return null;
+                const img = new Image();
+                const url = URL.createObjectURL(blob);
+                try {
+                  img.src = url;
+                  await img.decode();
+                  return img;
+                } finally {
+                  URL.revokeObjectURL(url);
+                }
+              };
+
+              for (let tx = startTileX; tx <= endTileX; tx++) {
+                for (let ty = startTileY; ty <= endTileY; ty++) {
+                  const imgElem = await getTileImage(tx, ty);
+                  if (!(imgElem instanceof HTMLImageElement)) {
+                    const paddedX = String(tx).padStart(4, '0');
+                    const paddedY = String(ty).padStart(4, '0');
+                    throw new Error(`Tile not loaded: ${paddedX}/${paddedY}`);
+                  }
+
+                  tileCtx.drawImage(imgElem, (tx - startTileX) * tileSize, (ty - startTileY) * tileSize);
+                }
               }
-              const minPx = Math.min(px1, px2);
-              const minPy = Math.min(py1, py2);
-              const maxPx = Math.max(px1, px2);
-              const maxPy = Math.max(py1, py2);
-              const width = maxPx - minPx + 1;
-              const height = maxPy - minPy + 1;
-              const resp = await fetch(`/api/files/s0/tiles/${tx1}/${ty1}/0.png`);
-              const tileBlob = await resp.blob();
-              const bitmap = await createImageBitmap(tileBlob);
-              const canvas = document.createElement('canvas');
-              canvas.width = width; canvas.height = height;
-              const ctx = canvas.getContext('2d');
-              ctx.drawImage(bitmap, -minPx, -minPy);
-              const areaBlob = await new Promise(resolve => canvas.toBlob(resolve));
-              templateManager.createTemplate(areaBlob, 'captured-area', [tx1, ty1, minPx, minPy]);
-              instance.handleDisplayStatus('Captured area template!');
+
+              // Extract the requested area from the stitched canvas
+              const cropX = minGx - startTileX * tileSize;
+              const cropY = minGy - startTileY * tileSize;
+              const imgData = tileCtx.getImageData(cropX, cropY, width, height);
+
+              // Map rgb triplets to color ids (first occurrence wins to preserve transparent=0)
+              const rgbToID = new Map();
+              for (const c of colorpalette) {
+                const key = c.rgb.join(',');
+                if (!rgbToID.has(key)) rgbToID.set(key, c.id);
+              }
+              for (let i = 0; i < imgData.data.length; i += 4) {
+                const r = imgData.data[i];
+                const g = imgData.data[i + 1];
+                const b = imgData.data[i + 2];
+                const id = rgbToID.get(`${r},${g},${b}`) ?? 0;
+                imgData.data[i + 3] = id === 0 ? 0 : 255;
+              }
+
+              // Write image data to a new canvas for export
+              const outCanvas = document.createElement('canvas');
+              outCanvas.width = width; outCanvas.height = height;
+              outCanvas.getContext('2d').putImageData(imgData, 0, 0);
+              const areaBlob = await new Promise((resolve, reject) => outCanvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas is empty')), 'image/png'));
+              const outTileX = Math.floor(minGx / tileSize);
+              const outTileY = Math.floor(minGy / tileSize);
+              const outPxX = minGx % tileSize;
+              const outPxY = minGy % tileSize;
+
+              // Download the captured area as a PNG file
+              const url = URL.createObjectURL(areaBlob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `area_${outTileX}_${outTileY}_${outPxX}_${outPxY}.png`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              instance.handleDisplayStatus('Downloaded area image!');
             } catch (e) {
               instance.handleDisplayError(`Failed to capture area: ${e?.message || e}`);
             }
