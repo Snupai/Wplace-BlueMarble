@@ -258,7 +258,7 @@
 <h2>Licenses</h2>
 <p>
   (Below, all mentions of the "userscript" refer to the "earthrise" userscript made by Snupai) <br>
-  Most of this userscript is licensed under the <code>Mozilla Public License Version 2.0</code> (MPL-2.0). All software, code, and libraries in this repository are licensed under the MPL-2.0 license. However, the "earthrise" image in this userscript is owned by NASA and is licensed under the <code>Creative Commons 0 1.0 Universal</code> (CC0 1.0) license.
+  Most of this userscript is licensed under the <code>Mozilla Public License Version 2.0</code> (MPL-2.0). All software, code, and libraries in this repository are licensed under the MPL-2.0 license. However, the "earthrise" image in this userscript is owned by myraiganai.
 </p>
 
 <h2>FAQ</h2>
