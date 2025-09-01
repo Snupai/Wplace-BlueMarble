@@ -548,7 +548,7 @@ export default class Overlay {
    * @param {string} iMoveThings - The ID of the drag handle element
    * @since 0.8.2
   */
-  handleDrag(moveMe, iMoveThings) {
+  handleDrag(moveMe, iMoveThings, onEnd) {
     let isDragging = false;
     let offsetX, offsetY = 0;
     let animationFrame = null;
@@ -632,6 +632,9 @@ export default class Overlay {
       }
       document.body.style.userSelect = '';
       iMoveThings.classList.remove('dragging');
+      if (typeof onEnd === 'function') {
+        try { onEnd(currentX, currentY); } catch (_) {}
+      }
     };
 
     // Mouse down - start dragging
