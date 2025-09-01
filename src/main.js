@@ -775,7 +775,7 @@ async function buildOverlayMain() {
               const cropY = minGy - startTileY * tileSize;
               const imgData = tileCtx.getImageData(cropX, cropY, width, height);
 
-              // Map rgb triplets to color ids. Transparent uses a sentinel to avoid clashing with black.
+              // Map rgb triplets to color ids. Transparent uses sentinel #deface to avoid clashing with black.
               const rgbToID = new Map();
               for (const c of colorpalette) {
                 const key = c.rgb.join(',');
@@ -785,8 +785,16 @@ async function buildOverlayMain() {
                 const r = imgData.data[i];
                 const g = imgData.data[i + 1];
                 const b = imgData.data[i + 2];
-                const id = rgbToID.get(`${r},${g},${b}`) ?? 0;
-                imgData.data[i + 3] = id === 0 ? 0 : 255;
+                const a = imgData.data[i + 3];
+                const id = a === 0 ? 0 : (rgbToID.get(`${r},${g},${b}`) ?? 0);
+                if (id === 0) {
+                  imgData.data[i] = 0xDE;
+                  imgData.data[i + 1] = 0xFA;
+                  imgData.data[i + 2] = 0xCE;
+                  imgData.data[i + 3] = 0;
+                } else {
+                  imgData.data[i + 3] = 255;
+                }
               }
 
               // Write image data to a new canvas for export

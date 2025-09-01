@@ -150,7 +150,7 @@ export function selectAllCoordinateInputs(document) {
  * console.log(utils[5]?.rgb); // [255, 255, 255]
  */
 export const colorpalette = [
-  { "id": 0,  "premium": false, "name": "Transparent",   "rgb": [-1, -1, -1] }, // Sentinel RGB to avoid black collision
+  { "id": 0,  "premium": false, "name": "Transparent",   "rgb": [222, 250, 206] }, // Sentinel RGB #deface to avoid black collision
   { "id": 1,  "premium": false, "name": "Black",         "rgb": [0, 0, 0] },
   { "id": 2,  "premium": false, "name": "Dark Gray",     "rgb": [60, 60, 60] },
   { "id": 3,  "premium": false, "name": "Gray",          "rgb": [120, 120, 120] },
