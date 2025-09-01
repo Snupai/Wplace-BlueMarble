@@ -1,5 +1,5 @@
-/** The overlay builder for the erthrise script.
- * @description This class handles the overlay UI for the erthrise script.
+/** The overlay builder for the earthrise script.
+ * @description This class handles the overlay UI for the earthrise script.
  * @class Overlay
  * @since 0.0.2
  * @example

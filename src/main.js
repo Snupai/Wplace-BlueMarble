@@ -33,7 +33,7 @@ function inject(callback) {
 inject(() => {
 
   const script = document.currentScript; // Gets the current script HTML Script Element
-  const name = script?.getAttribute('bm-name') || 'erthrise'; // Gets the name value that was passed in. Defaults to "erthrise" if nothing was found
+  const name = script?.getAttribute('bm-name') || 'earthrise'; // Gets the name value that was passed in. Defaults to "earthrise" if nothing was found
   const consoleStyle = script?.getAttribute('bm-cStyle') || ''; // Gets the console style value that was passed in. Defaults to no styling if nothing was found
   const fetchedBlobQueue = new Map(); // Blobs being processed
 
@@ -271,13 +271,13 @@ async function buildOverlayMain() {
   overlayMain.addDiv({'id': 'bm-overlay', 'style': 'position: fixed; z-index: 2147483647; top: 10px; right: 75px;'})
       .addDiv({'id': 'bm-contain-header'})
       .addDiv({'id': 'bm-bar-drag'}).buildElement()
-      .addImg({'id': 'bm-button-logo', 'alt': 'erthrise Icon - Click to minimize/maximize', 'src': 'https://raw.githubusercontent.com/SwingTheVine/Wplace-BlueMarble/main/dist/assets/Favicon.png', 'style': 'cursor: pointer;'},
+      .addImg({'id': 'bm-button-logo', 'alt': 'earthrise Icon - Click to minimize/maximize', 'src': 'https://raw.githubusercontent.com/SwingTheVine/Wplace-BlueMarble/main/dist/assets/Favicon.png', 'style': 'cursor: pointer;'},
         (instance, img) => {
           /** Click event handler for overlay minimize/maximize functionality.
            * 
            * Toggles between two distinct UI states:
            * 1. MINIMIZED STATE (60×76px):
-           *    - Shows only the erthrise icon and drag bar
+           *    - Shows only the earthrise icon and drag bar
            *    - Hides all input fields, buttons, and status information
            *    - Applies fixed dimensions for consistent appearance
            *    - Repositions icon with 3px right offset for visual centering
@@ -387,7 +387,7 @@ async function buildOverlayMain() {
             // Define elements that should be hidden/shown during state transitions
             // Each element is documented with its purpose for maintainability
             const elementsToToggle = [
-              '#bm-overlay h1',                    // Main title "erthrise"
+              '#bm-overlay h1',                    // Main title "earthrise"
               '#bm-contain-userinfo',              // User information section (username, droplets, level)
               '#bm-overlay hr',                    // Visual separator lines
               '#bm-contain-automation > *:not(#bm-contain-coords)', // Automation section excluding coordinates
@@ -552,8 +552,8 @@ async function buildOverlayMain() {
             
             // Update alt text to reflect current state for screen readers and tooltips
             img.alt = isMinimized ? 
-              'erthrise Icon - Minimized (Click to maximize)' :
-              'erthrise Icon - Maximized (Click to minimize)';
+              'earthrise Icon - Minimized (Click to maximize)' :
+              'earthrise Icon - Maximized (Click to minimize)';
             
             // No status message needed - state change is visually obvious to users
           });
@@ -907,7 +907,7 @@ async function buildOverlayMain() {
               }
             });
           }).buildElement()
-          .addButton({'id': 'bm-button-website', 'className': 'bm-help', 'innerHTML': '🌐', 'title': 'Official erthrise Website'},
+          .addButton({'id': 'bm-button-website', 'className': 'bm-help', 'innerHTML': '🌐', 'title': 'Official earthrise Website'},
             (instance, button) => {
             button.addEventListener('click', () => {
               window.open('https://bluemarble.camilledaguin.fr/', '_blank', 'noopener noreferrer');
@@ -1014,7 +1014,7 @@ async function buildOverlayMain() {
       if (!Number.isFinite(px)) px = 0;
       if (!Number.isFinite(py)) py = 0;
       if (![tx, ty].every(Number.isFinite)) {
-        try { console.warn('erthrise: external coords invalid', parsed, { tx, ty, px, py }); } catch (_) {}
+        try { console.warn('earthrise: external coords invalid', parsed, { tx, ty, px, py }); } catch (_) {}
         overlayMain.handleDisplayError('External template missing valid coordinates');
         return;
       }
@@ -1186,24 +1186,24 @@ async function buildOverlayMain() {
             blob = blobFromDataUrl(du);
           }
         } catch (e) {
-          try { console.warn('erthrise: pixelData decode failed', e); } catch (_) {}
+          try { console.warn('earthrise: pixelData decode failed', e); } catch (_) {}
         }
         if (blob) { try { console.log('pixelData -> blob OK', { type: blob.type, size: blob.size }); } catch (_) {} }
       }
 
       if (!blob) {
-        try { console.warn('erthrise: failed to load external image', { aliasUrl, hasDataUrl: !!aliasDataUrl, hasPixels: !!aliasPixels, width: aliasWidth, height: aliasHeight }); } catch (_) {}
+        try { console.warn('earthrise: failed to load external image', { aliasUrl, hasDataUrl: !!aliasDataUrl, hasPixels: !!aliasPixels, width: aliasWidth, height: aliasHeight }); } catch (_) {}
         overlayMain.handleDisplayError('External template image unavailable (CORS/format)');
         try { console.groupEnd(); } catch (_) {}
         return;
       }
       try {
-        try { console.log('erthrise: createTemplate() with coords', { tx, ty, px, py, types: { tx: typeof tx, ty: typeof ty, px: typeof px, py: typeof py } }); } catch (_) {}
+        try { console.log('earthrise: createTemplate() with coords', { tx, ty, px, py, types: { tx: typeof tx, ty: typeof ty, px: typeof px, py: typeof py } }); } catch (_) {}
         templateManager.createTemplate(blob, name, [tx, ty, Number.isFinite(px)?px:0, Number.isFinite(py)?py:0]);
         try { GM.setValue('bmCoords', JSON.stringify({ tx, ty, px: Number.isFinite(px)?px:0, py: Number.isFinite(py)?py:0 })); } catch (_) {}
         overlayMain.handleDisplayStatus('Received template from external site');
       } catch (e) {
-        try { console.error('erthrise: createTemplate failed', e); } catch (_) {}
+        try { console.error('earthrise: createTemplate failed', e); } catch (_) {}
         overlayMain.handleDisplayError(`Template creation failed: ${e?.message || e}`);
         try { console.groupEnd(); } catch (_) {}
         return;
@@ -1218,7 +1218,7 @@ async function buildOverlayMain() {
       if (!data || data.source !== 'blue-marble-external') return;
       try {
         if (DEBUG_EXT) {
-          console.groupCollapsed('erthrise: external message received');
+          console.groupCollapsed('earthrise: external message received');
           console.log('Payload keys:', Object.keys(data||{}));
           console.log('Payload:', data);
           console.groupEnd();
@@ -1231,7 +1231,7 @@ async function buildOverlayMain() {
       }
       await processExternal(data);
     } catch (e) {
-      try { console.warn('erthrise: external message error', e); } catch (_) {}
+      try { console.warn('earthrise: external message error', e); } catch (_) {}
     }
   });
 
@@ -1248,12 +1248,12 @@ async function buildOverlayMain() {
   window.BM_receiveExternal = (payload) => window.postMessage(Object.assign({ source: 'blue-marble-external' }, payload), '*');
   try {
     inject(() => {
-      // Expose a page-context helper for sending messages to erthrise
+      // Expose a page-context helper for sending messages to earthrise
       window.BM_receiveExternal = (payload) => window.postMessage(Object.assign({ source: 'blue-marble-external' }, payload), '*');
     });
   } catch (_) {}
 
-  // Notify opener (e.g., your gallery) that erthrise is ready to receive
+  // Notify opener (e.g., your gallery) that earthrise is ready to receive
   try { window.opener && window.opener.postMessage({ source: 'blue-marble', type: 'ready' }, '*'); } catch (_) {}
 
   // ------- Helper: Build the color filter list -------
