@@ -7,7 +7,7 @@
 // @license      MPL-2.0
 // @supportURL   https://discord.gg/tpeBPy46hf
 // @homepageURL  https://bluemarble.camilledaguin.fr/
-// @icon         https://raw.githubusercontent.com/Snupai/earthrise/9dee5546ed7e55e8f75f2febc007ddfa44aa643e/dist/assets/Favicon.png
+// @icon         https://raw.githubusercontent.com/Snupai/earthrise/ab89f262e9364c8b87607c57744fce244bdb2666/dist/assets/Favicon.png
 // @updateURL    https://raw.githubusercontent.com/Snupai/earthrise/main/dist/BlueMarble.user.js
 // @downloadURL  https://raw.githubusercontent.com/Snupai/earthrise/main/dist/BlueMarble.user.js
 // @match        https://wplace.live/*
