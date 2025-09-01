@@ -775,7 +775,7 @@ async function buildOverlayMain() {
               const cropY = minGy - startTileY * tileSize;
               const imgData = tileCtx.getImageData(cropX, cropY, width, height);
 
-              // Map rgb triplets to color ids (first occurrence wins to preserve transparent=0)
+              // Map rgb triplets to color ids. Transparent uses a sentinel to avoid clashing with black.
               const rgbToID = new Map();
               for (const c of colorpalette) {
                 const key = c.rgb.join(',');
