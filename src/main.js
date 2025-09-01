@@ -749,17 +749,26 @@ async function buildOverlayMain() {
                 for (let ty = startTileY; ty <= endTileY; ty++) {
                   const paddedX = String(tx).padStart(4, '0');
                   const paddedY = String(ty).padStart(4, '0');
-                  const url = `https://backend.wplace.live/files/s0/tiles/${paddedX}/${paddedY}.png`;
-                  const resp = await fetch(url);
-                  if (!resp.ok) { throw new Error(`Failed to fetch tile: ${resp.status}`); }
-                  const blob = await resp.blob();
-                  const img = await new Promise((resolve, reject) => {
-                    const i = new Image();
-                    i.onload = () => { resolve(i); };
-                    i.onerror = () => reject(new Error('Tile image could not be decoded'));
-                    i.src = URL.createObjectURL(blob);
-                  });
-                  tileCtx.drawImage(img, (tx - startTileX) * tileSize, (ty - startTileY) * tileSize);
+                  const selector = `img[src*="/tiles/${paddedX}/${paddedY}.png"]`;
+                  const imgElem = /** @type {?HTMLImageElement} */ (document.querySelector(selector));
+                  if (!(imgElem instanceof HTMLImageElement)) {
+                    throw new Error(`Tile not found in DOM: ${paddedX}/${paddedY}`);
+                  }
+
+                  if (!imgElem.complete) {
+                    await new Promise((resolve, reject) => {
+                      imgElem.onload = () => resolve();
+                      imgElem.onerror = () => reject(new Error('Tile image could not be decoded'));
+                    });
+                  } else if (typeof imgElem.decode === 'function') {
+                    try { await imgElem.decode(); } catch (_) {}
+                  }
+
+                  try {
+                    tileCtx.drawImage(imgElem, (tx - startTileX) * tileSize, (ty - startTileY) * tileSize);
+                  } catch (_) {
+                    throw new Error('Tile image could not be decoded');
+                  }
                 }
               }
 
