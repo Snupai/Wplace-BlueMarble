@@ -727,35 +727,50 @@ async function buildOverlayMain() {
               const maxPy = Math.max(py1, py2);
               const width = maxPx - minPx + 1;
               const height = maxPy - minPy + 1;
-              const canvas = document.createElement('canvas');
-              canvas.width = width; canvas.height = height;
-              const ctx = canvas.getContext('2d');
-              const imgData = ctx.createImageData(width, height);
-
-              // Helper to map color id to rgb
-              const idToRGB = new Map(colorpalette.map(c => [c.id, c.rgb]));
-
-              // Fetch each pixel color individually
-              for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                  const absX = minPx + x;
-                  const absY = minPy + y;
-                  const endpoint = `https://backend.wplace.live/s0/pixel/${tx1}/${ty1}?x=${absX}&y=${absY}`;
-                  const resp = await fetch(endpoint);
-                  if (!resp.ok) { throw new Error('Pixel fetch failed'); }
-                  const data = await resp.json();
-                  const colorID = data?.color ?? data?.data?.color ?? 0;
-                  const rgb = idToRGB.get(colorID) || [0, 0, 0];
-                  const idx = (y * width + x) * 4;
-                  imgData.data[idx] = rgb[0];
-                  imgData.data[idx + 1] = rgb[1];
-                  imgData.data[idx + 2] = rgb[2];
-                  imgData.data[idx + 3] = colorID === 0 ? 0 : 255;
-                }
+              const paddedX = String(tx1).padStart(4, '0');
+              const paddedY = String(ty1).padStart(4, '0');
+              const tileEl = document.querySelector(`img[src*="/tiles/${paddedX}/${paddedY}"]`);
+              if (!tileEl) {
+                throw new Error('Tile not found in DOM');
               }
 
-              ctx.putImageData(imgData, 0, 0);
-              const areaBlob = await new Promise((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas is empty')), 'image/png'));
+              // Draw the tile into an offscreen canvas
+              const tileCanvas = document.createElement('canvas');
+              tileCanvas.width = tileEl.naturalWidth || tileEl.width;
+              tileCanvas.height = tileEl.naturalHeight || tileEl.height;
+              const tileCtx = tileCanvas.getContext('2d');
+
+              if (tileEl.complete && tileEl.naturalWidth) {
+                tileCtx.drawImage(tileEl, 0, 0);
+              } else {
+                await new Promise((resolve, reject) => {
+                  tileEl.onload = () => { tileCtx.drawImage(tileEl, 0, 0); resolve(); };
+                  tileEl.onerror = () => reject(new Error('Tile image failed to load'));
+                });
+              }
+
+              // Extract the requested area
+              const imgData = tileCtx.getImageData(minPx, minPy, width, height);
+
+              // Map rgb triplets to color ids (first occurrence wins to preserve transparent=0)
+              const rgbToID = new Map();
+              for (const c of colorpalette) {
+                const key = c.rgb.join(',');
+                if (!rgbToID.has(key)) rgbToID.set(key, c.id);
+              }
+              for (let i = 0; i < imgData.data.length; i += 4) {
+                const r = imgData.data[i];
+                const g = imgData.data[i + 1];
+                const b = imgData.data[i + 2];
+                const id = rgbToID.get(`${r},${g},${b}`) ?? 0;
+                imgData.data[i + 3] = id === 0 ? 0 : 255;
+              }
+
+              // Write image data to a new canvas for export
+              const outCanvas = document.createElement('canvas');
+              outCanvas.width = width; outCanvas.height = height;
+              outCanvas.getContext('2d').putImageData(imgData, 0, 0);
+              const areaBlob = await new Promise((resolve, reject) => outCanvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas is empty')), 'image/png'));
               templateManager.createTemplate(areaBlob, 'captured-area', [tx1, ty1, minPx, minPy]);
               instance.handleDisplayStatus('Captured area template!');
             } catch (e) {
