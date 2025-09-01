@@ -372,6 +372,8 @@ async function buildOverlayMain() {
             const createButton = document.querySelector('#bm-button-create');
             const enableButton = document.querySelector('#bm-button-enable');
             const disableButton = document.querySelector('#bm-button-disable');
+            const areaToggleButton = document.querySelector('#bm-button-area-toggle');
+            const areaContainer = document.querySelector('#bm-area-container');
             const coordInputs = document.querySelectorAll('#bm-contain-coords input');
             
             // Pre-restore original dimensions when switching to maximized state
@@ -434,7 +436,15 @@ async function buildOverlayMain() {
               if (disableButton) {
                 disableButton.style.display = 'none';
               }
-              
+
+              // Hide area mode toggle and container
+              if (areaToggleButton) {
+                areaToggleButton.style.display = 'none';
+              }
+              if (areaContainer) {
+                areaContainer.style.display = 'none';
+              }
+
               // Hide all coordinate input fields individually (failsafe)
               coordInputs.forEach(input => {
                 input.style.display = 'none';
@@ -511,7 +521,16 @@ async function buildOverlayMain() {
                 disableButton.style.display = '';
                 disableButton.style.marginTop = '';
               }
-              
+
+              // Restore area mode toggle and container
+              if (areaToggleButton) {
+                areaToggleButton.style.display = '';
+              }
+              if (areaContainer) {
+                const isAreaModeOn = areaToggleButton?.textContent?.includes('On');
+                areaContainer.style.display = isAreaModeOn ? 'flex' : 'none';
+              }
+
               // Restore all coordinate input fields
               coordInputs.forEach(input => {
                 input.style.display = '';
