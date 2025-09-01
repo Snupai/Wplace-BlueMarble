@@ -1,5 +1,5 @@
-/** The overlay builder for the Blue Marble script.
- * @description This class handles the overlay UI for the Blue Marble script.
+/** The overlay builder for the erthrise script.
+ * @description This class handles the overlay UI for the erthrise script.
  * @class Overlay
  * @since 0.0.2
  * @example

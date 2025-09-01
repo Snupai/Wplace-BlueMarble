@@ -33,7 +33,7 @@ function inject(callback) {
 inject(() => {
 
   const script = document.currentScript; // Gets the current script HTML Script Element
-  const name = script?.getAttribute('bm-name') || 'Blue Marble'; // Gets the name value that was passed in. Defaults to "Blue Marble" if nothing was found
+  const name = script?.getAttribute('bm-name') || 'erthrise'; // Gets the name value that was passed in. Defaults to "erthrise" if nothing was found
   const consoleStyle = script?.getAttribute('bm-cStyle') || ''; // Gets the console style value that was passed in. Defaults to no styling if nothing was found
   const fetchedBlobQueue = new Map(); // Blobs being processed
 
@@ -271,13 +271,13 @@ async function buildOverlayMain() {
   overlayMain.addDiv({'id': 'bm-overlay', 'style': 'position: fixed; z-index: 2147483647; top: 10px; right: 75px;'})
       .addDiv({'id': 'bm-contain-header'})
       .addDiv({'id': 'bm-bar-drag'}).buildElement()
-      .addImg({'id': 'bm-button-logo', 'alt': 'Blue Marble Icon - Click to minimize/maximize', 'src': 'https://raw.githubusercontent.com/SwingTheVine/Wplace-BlueMarble/main/dist/assets/Favicon.png', 'style': 'cursor: pointer;'}, 
+      .addImg({'id': 'bm-button-logo', 'alt': 'erthrise Icon - Click to minimize/maximize', 'src': 'https://raw.githubusercontent.com/SwingTheVine/Wplace-BlueMarble/main/dist/assets/Favicon.png', 'style': 'cursor: pointer;'},
         (instance, img) => {
           /** Click event handler for overlay minimize/maximize functionality.
            * 
            * Toggles between two distinct UI states:
            * 1. MINIMIZED STATE (60×76px):
-           *    - Shows only the Blue Marble icon and drag bar
+           *    - Shows only the erthrise icon and drag bar
            *    - Hides all input fields, buttons, and status information
            *    - Applies fixed dimensions for consistent appearance
            *    - Repositions icon with 3px right offset for visual centering
@@ -387,7 +387,7 @@ async function buildOverlayMain() {
             // Define elements that should be hidden/shown during state transitions
             // Each element is documented with its purpose for maintainability
             const elementsToToggle = [
-              '#bm-overlay h1',                    // Main title "Blue Marble"
+              '#bm-overlay h1',                    // Main title "erthrise"
               '#bm-contain-userinfo',              // User information section (username, droplets, level)
               '#bm-overlay hr',                    // Visual separator lines
               '#bm-contain-automation > *:not(#bm-contain-coords)', // Automation section excluding coordinates
@@ -552,8 +552,8 @@ async function buildOverlayMain() {
             
             // Update alt text to reflect current state for screen readers and tooltips
             img.alt = isMinimized ? 
-              'Blue Marble Icon - Minimized (Click to maximize)' : 
-              'Blue Marble Icon - Maximized (Click to minimize)';
+              'erthrise Icon - Minimized (Click to maximize)' :
+              'erthrise Icon - Maximized (Click to minimize)';
             
             // No status message needed - state change is visually obvious to users
           });
@@ -681,6 +681,52 @@ async function buildOverlayMain() {
           }
         ).buildElement()
       .buildElement()
+      .addDiv({'id': 'bm-area-container', 'style': 'display: none; align-items: center; gap: 0.5ch; margin-top: 4px;'})
+        .addInput({'type': 'number', 'id': 'bm-input2-tx', 'placeholder': 'Tl X2', 'min': 0, 'max': 2047, 'step': 1, 'required': true}).buildElement()
+        .addInput({'type': 'number', 'id': 'bm-input2-ty', 'placeholder': 'Tl Y2', 'min': 0, 'max': 2047, 'step': 1, 'required': true}).buildElement()
+        .addInput({'type': 'number', 'id': 'bm-input2-px', 'placeholder': 'Px X2', 'min': 0, 'max': 2047, 'step': 1, 'required': true}).buildElement()
+        .addInput({'type': 'number', 'id': 'bm-input2-py', 'placeholder': 'Px Y2', 'min': 0, 'max': 2047, 'step': 1, 'required': true}).buildElement()
+        .addButton({'id': 'bm-button-save-area', 'textContent': 'Save Area'}, (instance, button) => {
+          button.onclick = async () => {
+            try {
+              const tx1 = Number(document.querySelector('#bm-input-tx')?.value);
+              const ty1 = Number(document.querySelector('#bm-input-ty')?.value);
+              const px1 = Number(document.querySelector('#bm-input-px')?.value);
+              const py1 = Number(document.querySelector('#bm-input-py')?.value);
+              const tx2 = Number(document.querySelector('#bm-input2-tx')?.value);
+              const ty2 = Number(document.querySelector('#bm-input2-ty')?.value);
+              const px2 = Number(document.querySelector('#bm-input2-px')?.value);
+              const py2 = Number(document.querySelector('#bm-input2-py')?.value);
+              if ([tx1, ty1, px1, py1, tx2, ty2, px2, py2].some(n => !Number.isFinite(n))) {
+                instance.handleDisplayError('Coordinates are malformed!');
+                return;
+              }
+              if (tx1 !== tx2 || ty1 !== ty2) {
+                instance.handleDisplayError('Area capture across tiles not supported');
+                return;
+              }
+              const minPx = Math.min(px1, px2);
+              const minPy = Math.min(py1, py2);
+              const maxPx = Math.max(px1, px2);
+              const maxPy = Math.max(py1, py2);
+              const width = maxPx - minPx + 1;
+              const height = maxPy - minPy + 1;
+              const resp = await fetch(`/api/files/s0/tiles/${tx1}/${ty1}/0.png`);
+              const tileBlob = await resp.blob();
+              const bitmap = await createImageBitmap(tileBlob);
+              const canvas = document.createElement('canvas');
+              canvas.width = width; canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(bitmap, -minPx, -minPy);
+              const areaBlob = await new Promise(resolve => canvas.toBlob(resolve));
+              templateManager.createTemplate(areaBlob, 'captured-area', [tx1, ty1, minPx, minPy]);
+              instance.handleDisplayStatus('Captured area template!');
+            } catch (e) {
+              instance.handleDisplayError(`Failed to capture area: ${e?.message || e}`);
+            }
+          };
+        }).buildElement()
+      .buildElement()
       // Color filter UI
       .addDiv({'id': 'bm-contain-colorfilter', 'style': 'max-height: 140px; overflow: auto; border: 1px solid rgba(255,255,255,0.1); padding: 4px; border-radius: 4px; display: none;'})
         .addDiv({'style': 'display: flex; gap: 6px; margin-bottom: 6px;'})
@@ -762,6 +808,15 @@ async function buildOverlayMain() {
 
                 // 3) Create the template
                 templateManager.createTemplate(blob, fileName.replace(/\.[^/.]+$/, ''), [tx, ty, px, py]);
+
+                // Store the pasted image in the file input so it can be reused with new coordinates
+                try {
+                  const input = document.querySelector('#bm-input-file-template');
+                  const dt = new DataTransfer();
+                  dt.items.add(new File([blob], fileName, { type: blob.type }));
+                  input.files = dt.files;
+                } catch (_) {}
+
                 instance.handleDisplayStatus('Pasted template from clipboard!');
               } catch (e) {
                 instance.handleDisplayError(`Failed to paste image template: ${e?.message || e}`);
@@ -812,6 +867,15 @@ async function buildOverlayMain() {
             instance.handleDisplayStatus(`Disabled templates!`);
           }
         }).buildElement()
+        .addButton({'id': 'bm-button-area-toggle', 'textContent': 'Area Mode Off'}, (instance, button) => {
+          let enabled = false;
+          button.onclick = () => {
+            enabled = !enabled;
+            const container = document.querySelector('#bm-area-container');
+            if (container) { container.style.display = enabled ? 'flex' : 'none'; }
+            button.textContent = enabled ? 'Area Mode On' : 'Area Mode Off';
+          };
+        }).buildElement()
       .buildElement()
       .addTextarea({'id': overlayMain.outputStatusId, 'placeholder': `Status: Sleeping...\nVersion: ${version}`, 'readOnly': true}).buildElement()
   .addDiv({'id': 'bm-contain-buttons-action'})
@@ -843,7 +907,7 @@ async function buildOverlayMain() {
               }
             });
           }).buildElement()
-          .addButton({'id': 'bm-button-website', 'className': 'bm-help', 'innerHTML': '🌐', 'title': 'Official Blue Marble Website'}, 
+          .addButton({'id': 'bm-button-website', 'className': 'bm-help', 'innerHTML': '🌐', 'title': 'Official erthrise Website'},
             (instance, button) => {
             button.addEventListener('click', () => {
               window.open('https://bluemarble.camilledaguin.fr/', '_blank', 'noopener noreferrer');
@@ -851,8 +915,8 @@ async function buildOverlayMain() {
           }).buildElement()
         .buildElement()
         .addSmall({'textContent': 'Made by Snupai 🏳️‍🌈', 'style': 'margin-top: auto;'}).buildElement()
+        .buildElement()
       .buildElement()
-    .buildElement()
   .buildOverlay(document.body);
 
   // ------- External integration: accept messages from other sites -------
@@ -950,7 +1014,7 @@ async function buildOverlayMain() {
       if (!Number.isFinite(px)) px = 0;
       if (!Number.isFinite(py)) py = 0;
       if (![tx, ty].every(Number.isFinite)) {
-        try { console.warn('Blue Marble: external coords invalid', parsed, { tx, ty, px, py }); } catch (_) {}
+        try { console.warn('erthrise: external coords invalid', parsed, { tx, ty, px, py }); } catch (_) {}
         overlayMain.handleDisplayError('External template missing valid coordinates');
         return;
       }
@@ -1122,24 +1186,24 @@ async function buildOverlayMain() {
             blob = blobFromDataUrl(du);
           }
         } catch (e) {
-          try { console.warn('Blue Marble: pixelData decode failed', e); } catch (_) {}
+          try { console.warn('erthrise: pixelData decode failed', e); } catch (_) {}
         }
         if (blob) { try { console.log('pixelData -> blob OK', { type: blob.type, size: blob.size }); } catch (_) {} }
       }
 
       if (!blob) {
-        try { console.warn('Blue Marble: failed to load external image', { aliasUrl, hasDataUrl: !!aliasDataUrl, hasPixels: !!aliasPixels, width: aliasWidth, height: aliasHeight }); } catch (_) {}
+        try { console.warn('erthrise: failed to load external image', { aliasUrl, hasDataUrl: !!aliasDataUrl, hasPixels: !!aliasPixels, width: aliasWidth, height: aliasHeight }); } catch (_) {}
         overlayMain.handleDisplayError('External template image unavailable (CORS/format)');
         try { console.groupEnd(); } catch (_) {}
         return;
       }
       try {
-        try { console.log('Blue Marble: createTemplate() with coords', { tx, ty, px, py, types: { tx: typeof tx, ty: typeof ty, px: typeof px, py: typeof py } }); } catch (_) {}
+        try { console.log('erthrise: createTemplate() with coords', { tx, ty, px, py, types: { tx: typeof tx, ty: typeof ty, px: typeof px, py: typeof py } }); } catch (_) {}
         templateManager.createTemplate(blob, name, [tx, ty, Number.isFinite(px)?px:0, Number.isFinite(py)?py:0]);
         try { GM.setValue('bmCoords', JSON.stringify({ tx, ty, px: Number.isFinite(px)?px:0, py: Number.isFinite(py)?py:0 })); } catch (_) {}
         overlayMain.handleDisplayStatus('Received template from external site');
       } catch (e) {
-        try { console.error('Blue Marble: createTemplate failed', e); } catch (_) {}
+        try { console.error('erthrise: createTemplate failed', e); } catch (_) {}
         overlayMain.handleDisplayError(`Template creation failed: ${e?.message || e}`);
         try { console.groupEnd(); } catch (_) {}
         return;
@@ -1154,7 +1218,7 @@ async function buildOverlayMain() {
       if (!data || data.source !== 'blue-marble-external') return;
       try {
         if (DEBUG_EXT) {
-          console.groupCollapsed('Blue Marble: external message received');
+          console.groupCollapsed('erthrise: external message received');
           console.log('Payload keys:', Object.keys(data||{}));
           console.log('Payload:', data);
           console.groupEnd();
@@ -1167,7 +1231,7 @@ async function buildOverlayMain() {
       }
       await processExternal(data);
     } catch (e) {
-      try { console.warn('Blue Marble: external message error', e); } catch (_) {}
+      try { console.warn('erthrise: external message error', e); } catch (_) {}
     }
   });
 
@@ -1184,12 +1248,12 @@ async function buildOverlayMain() {
   window.BM_receiveExternal = (payload) => window.postMessage(Object.assign({ source: 'blue-marble-external' }, payload), '*');
   try {
     inject(() => {
-      // Expose a page-context helper for sending messages to Blue Marble
+      // Expose a page-context helper for sending messages to erthrise
       window.BM_receiveExternal = (payload) => window.postMessage(Object.assign({ source: 'blue-marble-external' }, payload), '*');
     });
   } catch (_) {}
 
-  // Notify opener (e.g., your gallery) that Blue Marble is ready to receive
+  // Notify opener (e.g., your gallery) that erthrise is ready to receive
   try { window.opener && window.opener.postMessage({ source: 'blue-marble', type: 'ready' }, '*'); } catch (_) {}
 
   // ------- Helper: Build the color filter list -------
