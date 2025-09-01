@@ -18,6 +18,7 @@ export default class ApiManager {
     this.disableAll = false; // Should the entire userscript be disabled?
     this.coordsTilePixel = []; // Contains the last detected tile/pixel coordinate pair requested
     this.templateCoordsTilePixel = []; // Contains the last "enabled" template coords
+    this.tileBlobs = new Map(); // Cache of rendered tile blobs keyed by "x,y"
   }
 
   /** Determines if the spontaneously received response is something we want.
@@ -121,10 +122,15 @@ export default class ApiManager {
           // Runs only if the tile has the template
           let tileCoordsTile = data['endpoint'].split('/');
           tileCoordsTile = [parseInt(tileCoordsTile[tileCoordsTile.length - 2]), parseInt(tileCoordsTile[tileCoordsTile.length - 1].replace('.png', ''))];
-          
+
           const blobUUID = data['blobID'];
           const blobData = data['blobData'];
-          
+
+          // Cache the raw tile image for area capture
+          try {
+            this.tileBlobs.set(`${tileCoordsTile[0]},${tileCoordsTile[1]}`, blobData);
+          } catch (_) {}
+
           const templateBlob = await this.templateManager.drawTemplateOnTile(blobData, tileCoordsTile);
 
           window.postMessage({

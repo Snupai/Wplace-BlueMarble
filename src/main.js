@@ -743,47 +743,30 @@ async function buildOverlayMain() {
               tileCanvas.height = (endTileY - startTileY + 1) * tileSize;
               const tileCtx = tileCanvas.getContext('2d');
 
-              const getTileElement = (() => {
-                const cache = new Map();
-                return (x, y) => {
-                  const key = `${x},${y}`;
-                  let img = cache.get(key);
-                  if (!img) {
-                    document.querySelectorAll('img[src*="/tiles/"]').forEach(el => {
-                      const match = el.src.match(/\/tiles\/(\d+)\/(\d+)\.png/);
-                      if (match) {
-                        cache.set(`${Number(match[1])},${Number(match[2])}`, el);
-                      }
-                    });
-                    img = cache.get(key);
-                  }
-                  return img || null;
-                };
-              })();
+              const getTileImage = async (x, y) => {
+                const blob = apiManager?.tileBlobs?.get(`${x},${y}`);
+                if (!(blob instanceof Blob)) return null;
+                const img = new Image();
+                const url = URL.createObjectURL(blob);
+                try {
+                  img.src = url;
+                  await img.decode();
+                  return img;
+                } finally {
+                  URL.revokeObjectURL(url);
+                }
+              };
 
               for (let tx = startTileX; tx <= endTileX; tx++) {
                 for (let ty = startTileY; ty <= endTileY; ty++) {
-                  const imgElem = /** @type {?HTMLImageElement} */ (getTileElement(tx, ty));
+                  const imgElem = await getTileImage(tx, ty);
                   if (!(imgElem instanceof HTMLImageElement)) {
                     const paddedX = String(tx).padStart(4, '0');
                     const paddedY = String(ty).padStart(4, '0');
-                    throw new Error(`Tile not found in DOM: ${paddedX}/${paddedY}`);
+                    throw new Error(`Tile not loaded: ${paddedX}/${paddedY}`);
                   }
 
-                  if (!imgElem.complete) {
-                    await new Promise((resolve, reject) => {
-                      imgElem.onload = () => resolve();
-                      imgElem.onerror = () => reject(new Error('Tile image could not be decoded'));
-                    });
-                  } else if (typeof imgElem.decode === 'function') {
-                    try { await imgElem.decode(); } catch (_) {}
-                  }
-
-                  try {
-                    tileCtx.drawImage(imgElem, (tx - startTileX) * tileSize, (ty - startTileY) * tileSize);
-                  } catch (_) {
-                    throw new Error('Tile image could not be decoded');
-                  }
+                  tileCtx.drawImage(imgElem, (tx - startTileX) * tileSize, (ty - startTileY) * tileSize);
                 }
               }
 
