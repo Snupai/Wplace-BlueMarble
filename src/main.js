@@ -717,40 +717,56 @@ async function buildOverlayMain() {
                 instance.handleDisplayError('Coordinates are malformed!');
                 return;
               }
-              if (tx1 !== tx2 || ty1 !== ty2) {
-                instance.handleDisplayError('Area capture across tiles not supported');
-                return;
-              }
-              const minPx = Math.min(px1, px2);
-              const minPy = Math.min(py1, py2);
-              const maxPx = Math.max(px1, px2);
-              const maxPy = Math.max(py1, py2);
-              const width = maxPx - minPx + 1;
-              const height = maxPy - minPy + 1;
-              const paddedX = String(tx1).padStart(4, '0');
-              const paddedY = String(ty1).padStart(4, '0');
-              const tileEl = document.querySelector(`img[src*="/tiles/${paddedX}/${paddedY}"]`);
-              if (!tileEl) {
-                throw new Error('Tile not found in DOM');
-              }
+              const tileSize = templateManager.tileSize || 1000;
 
-              // Draw the tile into an offscreen canvas
+              // Convert both points to absolute pixel coordinates on the board
+              const gx1 = tx1 * tileSize + px1;
+              const gy1 = ty1 * tileSize + py1;
+              const gx2 = tx2 * tileSize + px2;
+              const gy2 = ty2 * tileSize + py2;
+
+              const minGx = Math.min(gx1, gx2);
+              const minGy = Math.min(gy1, gy2);
+              const maxGx = Math.max(gx1, gx2);
+              const maxGy = Math.max(gy1, gy2);
+
+              const width = maxGx - minGx + 1;
+              const height = maxGy - minGy + 1;
+
+              // Determine which tiles are needed
+              const startTileX = Math.floor(minGx / tileSize);
+              const startTileY = Math.floor(minGy / tileSize);
+              const endTileX = Math.floor(maxGx / tileSize);
+              const endTileY = Math.floor(maxGy / tileSize);
+
+              // Draw required tiles into an offscreen canvas
               const tileCanvas = document.createElement('canvas');
-              tileCanvas.width = tileEl.naturalWidth || tileEl.width;
-              tileCanvas.height = tileEl.naturalHeight || tileEl.height;
+              tileCanvas.width = (endTileX - startTileX + 1) * tileSize;
+              tileCanvas.height = (endTileY - startTileY + 1) * tileSize;
               const tileCtx = tileCanvas.getContext('2d');
 
-              if (tileEl.complete && tileEl.naturalWidth) {
-                tileCtx.drawImage(tileEl, 0, 0);
-              } else {
-                await new Promise((resolve, reject) => {
-                  tileEl.onload = () => { tileCtx.drawImage(tileEl, 0, 0); resolve(); };
-                  tileEl.onerror = () => reject(new Error('Tile image failed to load'));
-                });
+              for (let tx = startTileX; tx <= endTileX; tx++) {
+                for (let ty = startTileY; ty <= endTileY; ty++) {
+                  const paddedX = String(tx).padStart(4, '0');
+                  const paddedY = String(ty).padStart(4, '0');
+                  const url = `https://backend.wplace.live/files/s0/tiles/${paddedX}/${paddedY}.png`;
+                  const resp = await fetch(url);
+                  if (!resp.ok) { throw new Error(`Failed to fetch tile: ${resp.status}`); }
+                  const blob = await resp.blob();
+                  const img = await new Promise((resolve, reject) => {
+                    const i = new Image();
+                    i.onload = () => { resolve(i); };
+                    i.onerror = () => reject(new Error('Tile image could not be decoded'));
+                    i.src = URL.createObjectURL(blob);
+                  });
+                  tileCtx.drawImage(img, (tx - startTileX) * tileSize, (ty - startTileY) * tileSize);
+                }
               }
 
-              // Extract the requested area
-              const imgData = tileCtx.getImageData(minPx, minPy, width, height);
+              // Extract the requested area from the stitched canvas
+              const cropX = minGx - startTileX * tileSize;
+              const cropY = minGy - startTileY * tileSize;
+              const imgData = tileCtx.getImageData(cropX, cropY, width, height);
 
               // Map rgb triplets to color ids (first occurrence wins to preserve transparent=0)
               const rgbToID = new Map();
@@ -771,7 +787,11 @@ async function buildOverlayMain() {
               outCanvas.width = width; outCanvas.height = height;
               outCanvas.getContext('2d').putImageData(imgData, 0, 0);
               const areaBlob = await new Promise((resolve, reject) => outCanvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas is empty')), 'image/png'));
-              templateManager.createTemplate(areaBlob, 'captured-area', [tx1, ty1, minPx, minPy]);
+              const outTileX = Math.floor(minGx / tileSize);
+              const outTileY = Math.floor(minGy / tileSize);
+              const outPxX = minGx % tileSize;
+              const outPxY = minGy % tileSize;
+              templateManager.createTemplate(areaBlob, 'captured-area', [outTileX, outTileY, outPxX, outPxY]);
               instance.handleDisplayStatus('Captured area template!');
             } catch (e) {
               instance.handleDisplayError(`Failed to capture area: ${e?.message || e}`);
