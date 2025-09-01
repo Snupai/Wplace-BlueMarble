@@ -791,8 +791,17 @@ async function buildOverlayMain() {
               const outTileY = Math.floor(minGy / tileSize);
               const outPxX = minGx % tileSize;
               const outPxY = minGy % tileSize;
-              templateManager.createTemplate(areaBlob, 'captured-area', [outTileX, outTileY, outPxX, outPxY]);
-              instance.handleDisplayStatus('Captured area template!');
+
+              // Download the captured area as a PNG file
+              const url = URL.createObjectURL(areaBlob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `area_${outTileX}_${outTileY}_${outPxX}_${outPxY}.png`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              instance.handleDisplayStatus('Downloaded area image!');
             } catch (e) {
               instance.handleDisplayError(`Failed to capture area: ${e?.message || e}`);
             }
