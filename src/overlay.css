@@ -227,7 +227,8 @@ div:has(> #bm-button-teleport) {
 }
 
 /* Tile (x, y) & Pixel (x, y) input fields */
-#bm-contain-coords input[type="number"] {
+#bm-contain-coords input[type="number"],
+#bm-area-container input[type="number"] {
   appearance: auto;
   -moz-appearance: textfield;
   width: 5.5ch;
@@ -241,7 +242,9 @@ div:has(> #bm-button-teleport) {
 
 /* Removes scroll bar on tile & pixel input fields */
 #bm-contain-coords input[type="number"]::-webkit-outer-spin-button,
-#bm-contain-coords input[type="number"]::-webkit-inner-spin-button {
+#bm-contain-coords input[type="number"]::-webkit-inner-spin-button,
+#bm-area-container input[type="number"]::-webkit-outer-spin-button,
+#bm-area-container input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
@@ -355,7 +358,8 @@ div:has(> #bm-input-file-template),
 }
 
 /* Inputs: focus treatment */
-#bm-contain-coords input[type="number"]:focus {
+#bm-contain-coords input[type="number"]:focus,
+#bm-area-container input[type="number"]:focus {
   border-color: var(--ctp-blue);
   box-shadow: 0 0 0 2px rgba(137, 180, 250, 0.25);
   outline: none;

@@ -681,11 +681,28 @@ async function buildOverlayMain() {
           }
         ).buildElement()
       .buildElement()
-      .addDiv({'id': 'bm-area-container', 'style': 'display: none; align-items: center; gap: 0.5ch; margin-top: 4px;'})
-        .addInput({'type': 'number', 'id': 'bm-input2-tx', 'placeholder': 'Tl X2', 'min': 0, 'max': 2047, 'step': 1, 'required': true}).buildElement()
-        .addInput({'type': 'number', 'id': 'bm-input2-ty', 'placeholder': 'Tl Y2', 'min': 0, 'max': 2047, 'step': 1, 'required': true}).buildElement()
-        .addInput({'type': 'number', 'id': 'bm-input2-px', 'placeholder': 'Px X2', 'min': 0, 'max': 2047, 'step': 1, 'required': true}).buildElement()
-        .addInput({'type': 'number', 'id': 'bm-input2-py', 'placeholder': 'Px Y2', 'min': 0, 'max': 2047, 'step': 1, 'required': true}).buildElement()
+      .addDiv({'id': 'bm-area-container', 'style': 'display: none; flex-direction: column; align-items: flex-start; gap: 0.5ch; margin-top: 4px;'})
+        .addDiv({'style': 'display: flex; align-items: center; gap: 0.5ch;'})
+          .addButton({'id': 'bm-button-coords2', 'className': 'bm-help', 'style': 'margin-top: 0;', 'innerHTML': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 6"><circle cx="2" cy="2" r="2"></circle><path d="M2 6 L3.7 3 L0.3 3 Z"></path><circle cx="2" cy="2" r="0.7" fill="white"></circle></svg></svg>'},
+            (instance, button) => {
+              button.onclick = () => {
+                const coords = instance.apiManager?.coordsTilePixel;
+                if (!coords?.[0]) {
+                  instance.handleDisplayError('Coordinates are malformed! Did you try clicking on the canvas first?');
+                  return;
+                }
+                instance.updateInnerHTML('bm-input2-tx', String(coords?.[0] ?? ''));
+                instance.updateInnerHTML('bm-input2-ty', String(coords?.[1] ?? ''));
+                instance.updateInnerHTML('bm-input2-px', String(coords?.[2] ?? ''));
+                instance.updateInnerHTML('bm-input2-py', String(coords?.[3] ?? ''));
+              };
+            }
+          ).buildElement()
+          .addInput({'type': 'number', 'id': 'bm-input2-tx', 'placeholder': 'Tl X2', 'min': 0, 'max': 2047, 'step': 1, 'required': true}).buildElement()
+          .addInput({'type': 'number', 'id': 'bm-input2-ty', 'placeholder': 'Tl Y2', 'min': 0, 'max': 2047, 'step': 1, 'required': true}).buildElement()
+          .addInput({'type': 'number', 'id': 'bm-input2-px', 'placeholder': 'Px X2', 'min': 0, 'max': 2047, 'step': 1, 'required': true}).buildElement()
+          .addInput({'type': 'number', 'id': 'bm-input2-py', 'placeholder': 'Px Y2', 'min': 0, 'max': 2047, 'step': 1, 'required': true}).buildElement()
+        .buildElement()
         .addButton({'id': 'bm-button-save-area', 'textContent': 'Save Area'}, (instance, button) => {
           button.onclick = async () => {
             try {
