@@ -625,6 +625,7 @@ export default class Overlay {
     };
 
     const endDrag = () => {
+      if (!isDragging) { return; }
       isDragging = false;
       if (animationFrame) {
         cancelAnimationFrame(animationFrame);
