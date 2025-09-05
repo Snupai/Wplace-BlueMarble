@@ -1494,12 +1494,14 @@ async function buildOverlayMain() {
     }
   });
 
-  // If a template was already loaded from storage, show the color UI and build list
+  // If a template was already loaded from storage, show the color UI (if not minimized) and build list
   setTimeout(() => {
     try {
       if (templateManager.templatesArray?.length > 0) {
         const colorUI = document.querySelector('#bm-contain-colorfilter');
-        if (colorUI) { colorUI.style.display = ''; }
+        let overlayState = {};
+        try { overlayState = JSON.parse(localStorage.getItem('bmOverlayState')) || {}; } catch (_) { overlayState = {}; }
+        if (colorUI && !overlayState.minimized) { colorUI.style.display = ''; }
         buildColorFilterList();
       }
     } catch (_) {}

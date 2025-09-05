@@ -163,12 +163,19 @@ export default class TemplateManager {
     const pixelCountFormatted = new Intl.NumberFormat().format(template.pixelCount);
     this.overlay.handleDisplayStatus(`Template created at ${coords.join(', ')}! Total pixels: ${pixelCountFormatted}`);
 
-    // Ensure color filter UI is visible when a template is created
+    // Ensure template-related UI is only shown when overlay is not minimized
     try {
       const colorUI = document.querySelector('#bm-contain-colorfilter');
+      const templateBtns = document.querySelector('#bm-contain-buttons-template');
       let overlayState = {};
       try { overlayState = JSON.parse(localStorage.getItem('bmOverlayState')) || {}; } catch (_) { overlayState = {}; }
-      if (colorUI && !overlayState.minimized) { colorUI.style.display = ''; }
+      if (overlayState.minimized) {
+        if (colorUI) { colorUI.style.display = 'none'; }
+        if (templateBtns) { templateBtns.style.display = 'none'; }
+      } else {
+        if (colorUI) { colorUI.style.display = ''; }
+        if (templateBtns) { templateBtns.style.display = ''; }
+      }
       // Deferred palette list rendering; actual DOM is built in main via helper
       window.postMessage({ source: 'blue-marble', bmEvent: 'bm-rebuild-color-list' }, '*');
     } catch (_) { /* no-op */ }
