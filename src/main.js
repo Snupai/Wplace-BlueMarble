@@ -307,8 +307,20 @@ async function buildOverlayMain() {
     lastTemplatePersist = (async () => {
       try {
         if (!blob) return;
-        const buffer = await blob.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result;
+            if (typeof result === 'string') {
+              const comma = result.indexOf(',');
+              resolve(comma >= 0 ? result.slice(comma + 1) : result);
+            } else {
+              resolve('');
+            }
+          };
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(blob);
+        });
         await GM.setValue('bmLastTemplate', JSON.stringify({ name, type: blob.type, data: base64 }));
       } catch (_) {}
     })();
