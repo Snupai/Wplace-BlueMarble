@@ -300,7 +300,36 @@ async function buildOverlayMain() {
       GM.setValue('bmCoords', JSON.stringify(merged));
     } catch (_) {}
   };
-  
+
+  // Persist the last uploaded or pasted template image so it can be reused after reload
+  const persistTemplateFile = async (blob, name) => {
+    try {
+      if (!blob) return;
+      const buffer = await blob.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      GM.setValue('bmLastTemplate', JSON.stringify({ name, type: blob.type, data: base64 }));
+    } catch (_) {}
+  };
+
+  const restoreTemplateFile = () => {
+    try {
+      const raw = GM_getValue('bmLastTemplate', '');
+      if (!raw) return;
+      const { name, type, data } = JSON.parse(raw);
+      if (!data) return;
+      const bytes = Uint8Array.from(atob(data), c => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: type || 'image/png' });
+      const file = new File([blob], name || 'Template', { type: type || 'image/png' });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      const input = document.querySelector('#bm-input-file-template');
+      if (input) {
+        input.files = dt.files;
+        input.dispatchEvent(new Event('change'));
+      }
+    } catch (_) {}
+  };
+
   // Inline critical positioning so the overlay remains visible even if CSS fails to load
   overlayMain.addDiv({'id': 'bm-overlay', 'style': 'position: fixed; z-index: 2147483647; top: 10px; right: 75px;'})
       .addDiv({'id': 'bm-contain-header'})
@@ -932,6 +961,10 @@ async function buildOverlayMain() {
             uploadButton.style.flex = '1 1 auto';
             uploadButton.style.minWidth = '0';
 
+            input.addEventListener('change', () => {
+              try { persistTemplateFile(input.files[0], input.files[0]?.name); } catch (_) {}
+            });
+
             pasteBtn.addEventListener('click', async () => {
               try {
                 // 1) Read coordinates from inputs (require valid coords)
@@ -978,6 +1011,7 @@ async function buildOverlayMain() {
                   const dt = new DataTransfer();
                   dt.items.add(new File([blob], fileName, { type: blob.type }));
                   input.files = dt.files;
+                  try { persistTemplateFile(blob, fileName); } catch (_) {}
                 } catch (_) {}
 
                 instance.handleDisplayStatus('Pasted template from clipboard!');
@@ -1082,6 +1116,7 @@ async function buildOverlayMain() {
       .buildElement()
   .buildOverlay(document.body);
   restoreOverlayPosition();
+  restoreTemplateFile();
   overlayMain.handleDrag('#bm-overlay', '#bm-bar-drag', (x, y) => { saveOverlayState(x, y); });
   if (overlayState.minimized) {
     try { document.getElementById('bm-button-logo')?.click(); } catch (_) {}
