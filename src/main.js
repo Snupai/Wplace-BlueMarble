@@ -410,6 +410,7 @@ async function buildOverlayMain() {
             const disableButton = document.querySelector('#bm-button-disable');
             const areaToggleButton = document.querySelector('#bm-button-area-toggle');
             const areaContainer = document.querySelector('#bm-area-container');
+            const templateButtons = document.querySelector('#bm-contain-buttons-template');
             const coordInputs = document.querySelectorAll('#bm-contain-coords input');
             
             // Pre-restore original dimensions when switching to maximized state
@@ -471,6 +472,11 @@ async function buildOverlayMain() {
               // Hide disable templates button
               if (disableButton) {
                 disableButton.style.display = 'none';
+              }
+
+              // Hide template button container
+              if (templateButtons) {
+                templateButtons.style.display = 'none';
               }
 
               // Hide area mode toggle and container
@@ -556,6 +562,11 @@ async function buildOverlayMain() {
               if (disableButton) {
                 disableButton.style.display = '';
                 disableButton.style.marginTop = '';
+              }
+
+              // Restore template button container visibility
+              if (templateButtons) {
+                templateButtons.style.display = '';
               }
 
               // Restore area mode toggle and container
