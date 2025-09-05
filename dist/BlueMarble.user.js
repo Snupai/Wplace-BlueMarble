@@ -6,7 +6,7 @@
 // @author       Snupai
 // @license      MPL-2.0
 // @supportURL   https://discord.gg/tpeBPy46hf
-// @homepageURL  https://bluemarble.camilledaguin.fr/
+// @homepageURL  https://snupai.dev/
 // @icon         https://raw.githubusercontent.com/Snupai/earthrise/b6d7f2334a238038f5022085e6d6773ff9d658cc/dist/assets/Favicon.png
 // @updateURL    https://raw.githubusercontent.com/Snupai/earthrise/main/dist/BlueMarble.user.js
 // @downloadURL  https://raw.githubusercontent.com/Snupai/earthrise/main/dist/BlueMarble.user.js
