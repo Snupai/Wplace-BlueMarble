@@ -81,7 +81,6 @@ export default class Template {
       this.rgbToMeta.set(keyOther, { id: 'other', premium: false, name: 'Other' });
     } catch (ignored) {}
 
-    console.log('Allowed colors for template:', this.allowedColorsSet);
   }
 
   /** Creates chunks of the template for each tile.
@@ -90,8 +89,6 @@ export default class Template {
    * @since 0.65.4
    */
   async createTemplateTiles() {
-    console.log('Template coordinates:', this.coords);
-
     const shreadSize = 3; // Scale image factor for pixel art enhancement (must be odd)
     // Create efficient bitmap from uploaded file with robust fallback
     let bitmap;
@@ -121,7 +118,6 @@ export default class Template {
     // Calculate total pixel count using standard width × height formula
     // TODO: Use non-transparent pixels instead of basic width times height
     const totalPixels = imageWidth * imageHeight;
-    console.log(`Template pixel analysis - Dimensions: ${imageWidth}×${imageHeight} = ${totalPixels.toLocaleString()} pixels`);
     
     // Store pixel count in instance property for access by template manager and UI components
     this.pixelCount = totalPixels;
@@ -201,11 +197,7 @@ export default class Template {
       // B. The top left corner of the current tile to the bottom right corner of the image
       const drawSizeY = Math.min(this.tileSize - (pixelY % this.tileSize), imageHeight - (pixelY - this.coords[3]));
 
-      console.log(`Math.min(${this.tileSize} - (${pixelY} % ${this.tileSize}), ${imageHeight} - (${pixelY - this.coords[3]}))`);
-
       for (let pixelX = this.coords[2]; pixelX < imageWidth + this.coords[2];) {
-
-        console.log(`Pixel X: ${pixelX}\nPixel Y: ${pixelY}`);
 
         // Draws the partial tile first, if any
         // This calculates the size based on which is smaller:
@@ -213,21 +205,13 @@ export default class Template {
         // B. The top left corner of the current tile to the bottom right corner of the image
         const drawSizeX = Math.min(this.tileSize - (pixelX % this.tileSize), imageWidth - (pixelX - this.coords[2]));
 
-        console.log(`Math.min(${this.tileSize} - (${pixelX} % ${this.tileSize}), ${imageWidth} - (${pixelX - this.coords[2]}))`);
-
-        console.log(`Draw Size X: ${drawSizeX}\nDraw Size Y: ${drawSizeY}`);
-
         // Change the canvas size and wipe the canvas
         const canvasWidth = drawSizeX * shreadSize;// + (pixelX % this.tileSize) * shreadSize;
         const canvasHeight = drawSizeY * shreadSize;// + (pixelY % this.tileSize) * shreadSize;
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
 
-        console.log(`Draw X: ${drawSizeX}\nDraw Y: ${drawSizeY}\nCanvas Width: ${canvasWidth}\nCanvas Height: ${canvasHeight}`);
-
         context.imageSmoothingEnabled = false; // Nearest neighbor
-
-        console.log(`Getting X ${pixelX}-${pixelX + drawSizeX}\nGetting Y ${pixelY}-${pixelY + drawSizeY}`);
 
         // Draws the template segment on this tile segment
         context.clearRect(0, 0, canvasWidth, canvasHeight); // Clear any previous drawing (only runs when canvas size does not change)
@@ -284,8 +268,6 @@ export default class Template {
           }
         }
 
-        console.log(`Shreaded pixels for ${pixelX}, ${pixelY}`, imageData);
-
         context.putImageData(imageData, 0, 0);
 
         // Creates the "0000,0000,000,000" key name
@@ -300,13 +282,11 @@ export default class Template {
         templateTiles[templateTileName] = await createImageBitmap(canvas); // Creates the bitmap
         // Record tile prefix for fast lookup later
         this.tilePrefixes.add(templateTileName.split(',').slice(0,2).join(','));
-        
+
         const canvasBlob = await canvas.convertToBlob();
         const canvasBuffer = await canvasBlob.arrayBuffer();
         const canvasBufferBytes = Array.from(new Uint8Array(canvasBuffer));
         templateTilesBuffers[templateTileName] = uint8ToBase64(canvasBufferBytes); // Stores the buffer
-
-        console.log(templateTiles);
 
         pixelX += drawSizeX;
       }
@@ -314,8 +294,6 @@ export default class Template {
       pixelY += drawSizeY;
     }
 
-    console.log('Template Tiles: ', templateTiles);
-    console.log('Template Tiles Buffers: ', templateTilesBuffers);
     return { templateTiles, templateTilesBuffers };
   }
 }

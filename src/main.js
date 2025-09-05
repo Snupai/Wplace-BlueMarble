@@ -300,7 +300,40 @@ async function buildOverlayMain() {
       GM.setValue('bmCoords', JSON.stringify(merged));
     } catch (_) {}
   };
-  
+
+  // Persist the last uploaded or pasted template image so it can be reused after reload
+  let lastTemplatePersist = Promise.resolve();
+  const persistTemplateFile = (blob, name) => {
+    lastTemplatePersist = (async () => {
+      try {
+        if (!blob) return;
+        const buffer = await blob.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        await GM.setValue('bmLastTemplate', JSON.stringify({ name, type: blob.type, data: base64 }));
+      } catch (_) {}
+    })();
+    return lastTemplatePersist;
+  };
+
+  const restoreTemplateFile = () => {
+    try {
+      const raw = GM_getValue('bmLastTemplate', '');
+      if (!raw) return;
+      const { name, type, data } = JSON.parse(raw);
+      if (!data) return;
+      const bytes = Uint8Array.from(atob(data), c => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: type || 'image/png' });
+      const file = new File([blob], name || 'Template', { type: type || 'image/png' });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      const input = document.querySelector('#bm-input-file-template');
+      if (input) {
+        input.files = dt.files;
+        input.dispatchEvent(new Event('change'));
+      }
+    } catch (_) {}
+  };
+
   // Inline critical positioning so the overlay remains visible even if CSS fails to load
   overlayMain.addDiv({'id': 'bm-overlay', 'style': 'position: fixed; z-index: 2147483647; top: 10px; right: 75px;'})
       .addDiv({'id': 'bm-contain-header'})
@@ -410,6 +443,7 @@ async function buildOverlayMain() {
             const disableButton = document.querySelector('#bm-button-disable');
             const areaToggleButton = document.querySelector('#bm-button-area-toggle');
             const areaContainer = document.querySelector('#bm-area-container');
+            const templateButtons = document.querySelector('#bm-contain-buttons-template');
             const coordInputs = document.querySelectorAll('#bm-contain-coords input');
             
             // Pre-restore original dimensions when switching to maximized state
@@ -471,6 +505,11 @@ async function buildOverlayMain() {
               // Hide disable templates button
               if (disableButton) {
                 disableButton.style.display = 'none';
+              }
+
+              // Hide template button container
+              if (templateButtons) {
+                templateButtons.style.display = 'none';
               }
 
               // Hide area mode toggle and container
@@ -556,6 +595,11 @@ async function buildOverlayMain() {
               if (disableButton) {
                 disableButton.style.display = '';
                 disableButton.style.marginTop = '';
+              }
+
+              // Restore template button container visibility
+              if (templateButtons) {
+                templateButtons.style.display = '';
               }
 
               // Restore area mode toggle and container
@@ -921,6 +965,10 @@ async function buildOverlayMain() {
             uploadButton.style.flex = '1 1 auto';
             uploadButton.style.minWidth = '0';
 
+            input.addEventListener('change', () => {
+              persistTemplateFile(input.files[0], input.files[0]?.name);
+            });
+
             pasteBtn.addEventListener('click', async () => {
               try {
                 // 1) Read coordinates from inputs (require valid coords)
@@ -967,6 +1015,7 @@ async function buildOverlayMain() {
                   const dt = new DataTransfer();
                   dt.items.add(new File([blob], fileName, { type: blob.type }));
                   input.files = dt.files;
+                  input.dispatchEvent(new Event('change'));
                 } catch (_) {}
 
                 instance.handleDisplayStatus('Pasted template from clipboard!');
@@ -987,7 +1036,9 @@ async function buildOverlayMain() {
           }
         }).buildElement()
         .addButton({'id': 'bm-button-create', 'textContent': 'Create'}, (instance, button) => {
-          button.onclick = () => {
+          button.onclick = async () => {
+            await lastTemplatePersist.catch(() => {});
+            restoreTemplateFile();
             const input = document.querySelector('#bm-input-file-template');
 
             const coordTlX = document.querySelector('#bm-input-tx');
@@ -1003,11 +1054,6 @@ async function buildOverlayMain() {
             if (!input?.files[0]) {instance.handleDisplayError(`No file selected!`); return;}
 
             templateManager.createTemplate(input.files[0], input.files[0]?.name.replace(/\.[^/.]+$/, ''), [Number(coordTlX.value), Number(coordTlY.value), Number(coordPxX.value), Number(coordPxY.value)]);
-
-            // console.log(`TCoords: ${apiManager.templateCoordsTilePixel}\nCoords: ${apiManager.coordsTilePixel}`);
-            // apiManager.templateCoordsTilePixel = apiManager.coordsTilePixel; // Update template coords
-            // console.log(`TCoords: ${apiManager.templateCoordsTilePixel}\nCoords: ${apiManager.coordsTilePixel}`);
-            // templateManager.setTemplateImage(input.files[0]);
 
             instance.handleDisplayStatus(`Drew to canvas!`);
           }
@@ -1071,6 +1117,7 @@ async function buildOverlayMain() {
       .buildElement()
   .buildOverlay(document.body);
   restoreOverlayPosition();
+  restoreTemplateFile();
   overlayMain.handleDrag('#bm-overlay', '#bm-bar-drag', (x, y) => { saveOverlayState(x, y); });
   if (overlayState.minimized) {
     try { document.getElementById('bm-button-logo')?.click(); } catch (_) {}
@@ -1357,6 +1404,15 @@ async function buildOverlayMain() {
       try {
         try { console.log('earthrise: createTemplate() with coords', { tx, ty, px, py, types: { tx: typeof tx, ty: typeof ty, px: typeof px, py: typeof py } }); } catch (_) {}
         templateManager.createTemplate(blob, name, [tx, ty, Number.isFinite(px)?px:0, Number.isFinite(py)?py:0]);
+        try {
+          const input = document.querySelector('#bm-input-file-template');
+          if (input) {
+            const dt = new DataTransfer();
+            dt.items.add(new File([blob], name, { type: blob.type }));
+            input.files = dt.files;
+            input.dispatchEvent(new Event('change'));
+          }
+        } catch (_) {}
         try { GM.setValue('bmCoords', JSON.stringify({ tx, ty, px: Number.isFinite(px)?px:0, py: Number.isFinite(py)?py:0 })); } catch (_) {}
         overlayMain.handleDisplayStatus('Received template from external site');
       } catch (e) {
