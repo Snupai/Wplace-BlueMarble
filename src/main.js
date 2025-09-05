@@ -352,7 +352,6 @@ async function buildOverlayMain() {
       }
     } catch (_) {}
   };
-
   // Inline critical positioning so the overlay remains visible even if CSS fails to load
   overlayMain.addDiv({'id': 'bm-overlay', 'style': 'position: fixed; z-index: 2147483647; top: 10px; right: 75px;'})
       .addDiv({'id': 'bm-contain-header'})
@@ -1138,6 +1137,7 @@ async function buildOverlayMain() {
   restoreOverlayPosition();
   restoreTemplateFile();
   autoCreateTemplate();
+
   overlayMain.handleDrag('#bm-overlay', '#bm-bar-drag', (x, y) => { saveOverlayState(x, y); });
   if (overlayState.minimized) {
     try { document.getElementById('bm-button-logo')?.click(); } catch (_) {}
