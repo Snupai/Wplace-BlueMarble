@@ -302,13 +302,17 @@ async function buildOverlayMain() {
   };
 
   // Persist the last uploaded or pasted template image so it can be reused after reload
-  const persistTemplateFile = async (blob, name) => {
-    try {
-      if (!blob) return;
-      const buffer = await blob.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-      GM.setValue('bmLastTemplate', JSON.stringify({ name, type: blob.type, data: base64 }));
-    } catch (_) {}
+  let lastTemplatePersist = Promise.resolve();
+  const persistTemplateFile = (blob, name) => {
+    lastTemplatePersist = (async () => {
+      try {
+        if (!blob) return;
+        const buffer = await blob.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        await GM.setValue('bmLastTemplate', JSON.stringify({ name, type: blob.type, data: base64 }));
+      } catch (_) {}
+    })();
+    return lastTemplatePersist;
   };
 
   const restoreTemplateFile = () => {
@@ -962,7 +966,7 @@ async function buildOverlayMain() {
             uploadButton.style.minWidth = '0';
 
             input.addEventListener('change', () => {
-              try { persistTemplateFile(input.files[0], input.files[0]?.name); } catch (_) {}
+              persistTemplateFile(input.files[0], input.files[0]?.name);
             });
 
             pasteBtn.addEventListener('click', async () => {
@@ -1011,7 +1015,7 @@ async function buildOverlayMain() {
                   const dt = new DataTransfer();
                   dt.items.add(new File([blob], fileName, { type: blob.type }));
                   input.files = dt.files;
-                  try { persistTemplateFile(blob, fileName); } catch (_) {}
+                  input.dispatchEvent(new Event('change'));
                 } catch (_) {}
 
                 instance.handleDisplayStatus('Pasted template from clipboard!');
@@ -1032,7 +1036,9 @@ async function buildOverlayMain() {
           }
         }).buildElement()
         .addButton({'id': 'bm-button-create', 'textContent': 'Create'}, (instance, button) => {
-          button.onclick = () => {
+          button.onclick = async () => {
+            await lastTemplatePersist.catch(() => {});
+            restoreTemplateFile();
             const input = document.querySelector('#bm-input-file-template');
 
             const coordTlX = document.querySelector('#bm-input-tx');
@@ -1048,11 +1054,6 @@ async function buildOverlayMain() {
             if (!input?.files[0]) {instance.handleDisplayError(`No file selected!`); return;}
 
             templateManager.createTemplate(input.files[0], input.files[0]?.name.replace(/\.[^/.]+$/, ''), [Number(coordTlX.value), Number(coordTlY.value), Number(coordPxX.value), Number(coordPxY.value)]);
-
-            // console.log(`TCoords: ${apiManager.templateCoordsTilePixel}\nCoords: ${apiManager.coordsTilePixel}`);
-            // apiManager.templateCoordsTilePixel = apiManager.coordsTilePixel; // Update template coords
-            // console.log(`TCoords: ${apiManager.templateCoordsTilePixel}\nCoords: ${apiManager.coordsTilePixel}`);
-            // templateManager.setTemplateImage(input.files[0]);
 
             instance.handleDisplayStatus(`Drew to canvas!`);
           }
@@ -1403,6 +1404,15 @@ async function buildOverlayMain() {
       try {
         try { console.log('earthrise: createTemplate() with coords', { tx, ty, px, py, types: { tx: typeof tx, ty: typeof ty, px: typeof px, py: typeof py } }); } catch (_) {}
         templateManager.createTemplate(blob, name, [tx, ty, Number.isFinite(px)?px:0, Number.isFinite(py)?py:0]);
+        try {
+          const input = document.querySelector('#bm-input-file-template');
+          if (input) {
+            const dt = new DataTransfer();
+            dt.items.add(new File([blob], name, { type: blob.type }));
+            input.files = dt.files;
+            input.dispatchEvent(new Event('change'));
+          }
+        } catch (_) {}
         try { GM.setValue('bmCoords', JSON.stringify({ tx, ty, px: Number.isFinite(px)?px:0, py: Number.isFinite(py)?py:0 })); } catch (_) {}
         overlayMain.handleDisplayStatus('Received template from external site');
       } catch (e) {
