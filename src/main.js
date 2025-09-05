@@ -334,6 +334,24 @@ async function buildOverlayMain() {
     } catch (_) {}
   };
 
+  const autoCreateTemplate = () => {
+    try {
+      templateManager?.setTemplatesShouldBeDrawn(true);
+      if (templateManager?.templatesArray?.length > 0) return;
+      const input = document.querySelector('#bm-input-file-template');
+      const coordTlX = document.querySelector('#bm-input-tx');
+      const coordTlY = document.querySelector('#bm-input-ty');
+      const coordPxX = document.querySelector('#bm-input-px');
+      const coordPxY = document.querySelector('#bm-input-py');
+      if (input?.files[0] && coordTlX?.value !== '' && coordTlY?.value !== '' && coordPxX?.value !== '' && coordPxY?.value !== '') {
+        templateManager.createTemplate(
+          input.files[0],
+          input.files[0]?.name.replace(/\.[^/.]+$/, ''),
+          [Number(coordTlX.value), Number(coordTlY.value), Number(coordPxX.value), Number(coordPxY.value)]
+        );
+      }
+    } catch (_) {}
+  };
   // Inline critical positioning so the overlay remains visible even if CSS fails to load
   overlayMain.addDiv({'id': 'bm-overlay', 'style': 'position: fixed; z-index: 2147483647; top: 10px; right: 75px;'})
       .addDiv({'id': 'bm-contain-header'})
@@ -1118,6 +1136,8 @@ async function buildOverlayMain() {
   .buildOverlay(document.body);
   restoreOverlayPosition();
   restoreTemplateFile();
+  autoCreateTemplate();
+
   overlayMain.handleDrag('#bm-overlay', '#bm-bar-drag', (x, y) => { saveOverlayState(x, y); });
   if (overlayState.minimized) {
     try { document.getElementById('bm-button-logo')?.click(); } catch (_) {}
