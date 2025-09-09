@@ -576,7 +576,7 @@ export default class TemplateManager {
           const sortID = Number(templateKeyArray?.[0]); // Sort ID of the template
           const authorID = templateKeyArray?.[1] || '0'; // User ID of the person who exported the template
           const displayName = templateValue.name || `Template ${sortID || ''}`; // Display name of the template
-          //const coords = templateValue?.coords?.split(',').map(Number); // "1,2,3,4" -> [1, 2, 3, 4]
+          const coords = templateValue?.coords?.split(',').map(Number); // "1,2,3,4" -> [1, 2, 3, 4]
           const tilesbase64 = templateValue.tiles;
           const templateTiles = {}; // Stores the template bitmap tiles for each tile.
           let requiredPixelCount = 0; // Global required pixel count for this imported template
@@ -640,7 +640,7 @@ export default class TemplateManager {
             displayName: displayName,
             sortID: sortID || this.templatesArray?.length || 0,
             authorID: authorID || '',
-            //coords: coords
+            coords: coords
           });
           template.chunked = templateTiles;
           template.requiredPixelCount = requiredPixelCount;
@@ -666,6 +666,12 @@ export default class TemplateManager {
           // Store storageKey for later writes
           template.storageKey = templateKey;
           this.templatesArray.push(template);
+          
+          // Restore template coordinates to input fields if this is the first template loaded
+          if (coords && Array.isArray(coords) && coords.length >= 4) {
+            this.#restoreTemplateCoordinates(coords);
+          }
+          
           console.log(this.templatesArray);
           console.log(`^^^ This ^^^`);
         }
@@ -693,5 +699,47 @@ export default class TemplateManager {
    */
   setTemplatesShouldBeDrawn(value) {
     this.templatesShouldBeDrawn = value;
+  }
+
+  /** Restores template coordinates to input fields
+   * @param {number[]} coords - Array of coordinates [tx, ty, px, py]
+   * @since 1.0.0
+   */
+  #restoreTemplateCoordinates(coords) {
+    try {
+      // Only restore if this is the first template being loaded (avoid overwriting user input)
+      if (this.templatesArray.length > 1) {
+        return;
+      }
+
+      const [tx, ty, px, py] = coords;
+      
+      // Update input fields
+      const inputTx = document.querySelector('#bm-input-tx');
+      const inputTy = document.querySelector('#bm-input-ty');  
+      const inputPx = document.querySelector('#bm-input-px');
+      const inputPy = document.querySelector('#bm-input-py');
+      
+      if (inputTx && !inputTx.value) inputTx.value = String(tx);
+      if (inputTy && !inputTy.value) inputTy.value = String(ty);
+      if (inputPx && !inputPx.value) inputPx.value = String(px);
+      if (inputPy && !inputPy.value) inputPy.value = String(py);
+      
+      // Also persist to GM storage for consistency
+      try {
+        const coordsToStore = {
+          tx: Number(tx),
+          ty: Number(ty), 
+          px: Number(px),
+          py: Number(py)
+        };
+        GM.setValue('bmCoords', JSON.stringify(coordsToStore));
+      } catch (_) {}
+
+      console.log(`Restored template coordinates: ${coords.join(', ')}`);
+      
+    } catch (error) {
+      console.warn('Failed to restore template coordinates:', error);
+    }
   }
 }
