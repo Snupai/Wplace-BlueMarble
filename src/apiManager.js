@@ -20,7 +20,8 @@ export default class ApiManager {
     this.templateCoordsTilePixel = []; // Contains the last "enabled" template coords
     this.tileBlobs = new Map(); // Cache of rendered tile blobs keyed by "x,y"
     this.isHoverListenerSetup = false; // Track if hover listeners are already set up
-    this.lastHoverColor = null; // Track last auto-picked color to avoid spam
+    this.lastAutoPickedColor = null; // Track last auto-picked color to avoid redundant selections
+    this.currentSelectedColor = null; // Track currently selected color in palette
   }
 
   /** Determines if the spontaneously received response is something we want.
@@ -282,8 +283,27 @@ export default class ApiManager {
 
       if (targetColor) {
         console.log(`🎨 [AUTO-COLOR] Found matching color: #${targetColor.id} (${targetColor.name})`);
+        
+        // Check if this color is already selected - avoid redundant selections
+        const currentlySelectedColor = this.#getCurrentSelectedColor();
+        console.log(`🎨 [AUTO-COLOR] Currently selected color: ${currentlySelectedColor}`);
+        
+        if (currentlySelectedColor === targetColor.id) {
+          console.log(`🎨 [AUTO-COLOR] ✅ Color #${targetColor.id} (${targetColor.name}) is already selected - no change needed`);
+          return; // Color already selected, no need to change
+        }
+        
+        // Check if we just auto-picked this color recently to avoid rapid switching
+        if (this.lastAutoPickedColor === targetColor.id) {
+          console.log(`🎨 [AUTO-COLOR] ⏭️ Color #${targetColor.id} was recently auto-picked - debouncing`);
+          return; // Recently selected, avoid rapid switching
+        }
+        
         // Auto-select the color by simulating a click on the color palette
+        console.log(`🎨 [AUTO-COLOR] 🔄 Switching from color #${currentlySelectedColor} to #${targetColor.id} (${targetColor.name})`);
         this.#selectColor(targetColor.id);
+        this.lastAutoPickedColor = targetColor.id;
+        this.currentSelectedColor = targetColor.id;
         console.log(`🎨 [AUTO-COLOR] ✅ Auto-picked color #${targetColor.id} (${targetColor.name}) for pixel at ${tileX},${tileY}:${pixelX},${pixelY}`);
       } else {
         console.log(`🎨 [AUTO-COLOR] ❌ No matching color found for rgb(${r}, ${g}, ${b})`);
@@ -317,6 +337,12 @@ export default class ApiManager {
           const hasRing = updatedElement?.classList.contains('ring-primary') || updatedElement?.classList.contains('ring-2');
           console.log(`🎯 [COLOR-SELECT] Selection result for #color-${colorId}: ${hasRing ? '✅ SUCCESS' : '❌ FAILED'}`);
           console.log(`🎯 [COLOR-SELECT] Element classes:`, updatedElement?.classList.toString());
+          
+          // Update our internal tracking
+          if (hasRing) {
+            this.currentSelectedColor = colorId;
+            console.log(`🎯 [COLOR-SELECT] Updated internal tracking: currentSelectedColor = ${colorId}`);
+          }
         }, 100);
         
         return;
@@ -349,6 +375,12 @@ export default class ApiManager {
           setTimeout(() => {
             const hasRing = element?.classList.contains('ring-primary') || element?.classList.contains('ring-2');
             console.log(`🎯 [COLOR-SELECT] Fallback selection result: ${hasRing ? '✅ SUCCESS' : '❌ FAILED'}`);
+            
+            // Update our internal tracking
+            if (hasRing) {
+              this.currentSelectedColor = colorId;
+              console.log(`🎯 [COLOR-SELECT] Updated internal tracking (fallback): currentSelectedColor = ${colorId}`);
+            }
           }, 100);
           
           return;
@@ -363,6 +395,37 @@ export default class ApiManager {
 
     } catch (error) {
       console.error('🎯 [COLOR-SELECT] Color selection failed:', error);
+    }
+  }
+
+  /** Gets the currently selected color ID from the color palette
+   * @returns {number|null} The ID of the currently selected color, or null if none selected
+   * @since 1.0.0
+   */
+  #getCurrentSelectedColor() {
+    try {
+      // Look for the color element with the selected classes (ring-primary and ring-2)
+      const selectedElement = document.querySelector('[id^="color-"].ring-primary.ring-2');
+      if (selectedElement) {
+        const colorId = selectedElement.id.replace('color-', '');
+        console.log(`🎯 [GET-COLOR] Found selected color element: #${colorId}`);
+        return parseInt(colorId);
+      }
+
+      // Fallback: look for any element with ring classes
+      const ringElement = document.querySelector('[id^="color-"][class*="ring-primary"], [id^="color-"][class*="ring-2"]');
+      if (ringElement) {
+        const colorId = ringElement.id.replace('color-', '');
+        console.log(`🎯 [GET-COLOR] Found ring element (fallback): #${colorId}`);
+        return parseInt(colorId);
+      }
+
+      console.log(`🎯 [GET-COLOR] No selected color found`);
+      return null;
+      
+    } catch (error) {
+      console.error('🎯 [GET-COLOR] Failed to get current selected color:', error);
+      return null;
     }
   }
 
