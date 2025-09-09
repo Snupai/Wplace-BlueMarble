@@ -180,6 +180,9 @@ const apiManager = new ApiManager(templateManager); // Constructs a new ApiManag
 
 overlayMain.setApiManager(apiManager); // Sets the API manager
 
+// Setup hover detection for auto color picking
+apiManager.setupHoverDetection();
+
 const storageTemplates = JSON.parse(GM_getValue('bmTemplates', '{}'));
 console.log(storageTemplates);
 templateManager.importJSON(storageTemplates); // Loads the templates

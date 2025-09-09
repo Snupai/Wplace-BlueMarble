@@ -19,6 +19,8 @@ export default class ApiManager {
     this.coordsTilePixel = []; // Contains the last detected tile/pixel coordinate pair requested
     this.templateCoordsTilePixel = []; // Contains the last "enabled" template coords
     this.tileBlobs = new Map(); // Cache of rendered tile blobs keyed by "x,y"
+    this.isHoverListenerSetup = false; // Track if hover listeners are already set up
+    this.lastHoverColor = null; // Track last auto-picked color to avoid spam
   }
 
   /** Determines if the spontaneously received response is something we want.
@@ -93,8 +95,8 @@ export default class ApiManager {
           this.coordsTilePixel = [...coordsTile, ...coordsPixel]; // Combines the two arrays such that [x, y, x, y]
           const displayTP = serverTPtoDisplayTP(coordsTile, coordsPixel);
           
-          // Auto color picking functionality
-          await this.#performAutoColorPicking(coordsTile, coordsPixel);
+          // NOTE: Auto color picking removed from here - it was triggering too early
+          // Auto color picking now happens during paint mode hover/click events
           
           const spanElements = document.querySelectorAll('span'); // Retrieves all span elements
 
@@ -332,6 +334,144 @@ export default class ApiManager {
 
     } catch (error) {
       console.error('🎯 [COLOR-SELECT] Color selection failed:', error);
+    }
+  }
+
+  /** Sets up hover detection for auto color picking during paint mode
+   * @since 1.0.0
+   */
+  setupHoverDetection() {
+    if (this.isHoverListenerSetup) {
+      return; // Already set up
+    }
+
+    console.log(`🖱️ [HOVER] Setting up hover detection for auto color picking`);
+
+    try {
+      // Find the main canvas element
+      const canvas = document.querySelector('canvas.maplibregl-canvas');
+      if (!canvas) {
+        console.log(`🖱️ [HOVER] Canvas not found, retrying in 1 second...`);
+        setTimeout(() => this.setupHoverDetection(), 1000);
+        return;
+      }
+
+      console.log(`🖱️ [HOVER] Found canvas:`, canvas);
+
+      let isSpacePressed = false;
+      let lastHoverTime = 0;
+      const hoverDebounce = 100; // Debounce hover events
+
+      // Listen for space key press/release
+      document.addEventListener('keydown', (event) => {
+        if (event.code === 'Space' && !event.repeat) {
+          isSpacePressed = true;
+          console.log(`⌨️ [HOVER] Space key pressed - enabling auto color picking`);
+        }
+      });
+
+      document.addEventListener('keyup', (event) => {
+        if (event.code === 'Space') {
+          isSpacePressed = false;
+          console.log(`⌨️ [HOVER] Space key released - disabling auto color picking`);
+        }
+      });
+
+      // Listen for mouse move on canvas
+      canvas.addEventListener('mousemove', async (event) => {
+        const now = Date.now();
+        if (now - lastHoverTime < hoverDebounce) {
+          return; // Debounce
+        }
+        lastHoverTime = now;
+
+        // Only auto pick colors when space is pressed or in paint mode
+        if (!isSpacePressed && !this.#isPaintMode()) {
+          return;
+        }
+
+        console.log(`🖱️ [HOVER] Mouse move detected in paint mode or with space key`);
+        
+        // Get coordinates from mouse position
+        const coords = this.#getCanvasCoordinatesFromMouseEvent(event);
+        if (coords) {
+          const { tileX, tileY, pixelX, pixelY } = coords;
+          await this.#performAutoColorPicking([tileX.toString(), tileY.toString()], [pixelX.toString(), pixelY.toString()]);
+        }
+      });
+
+      // Listen for canvas clicks in paint mode
+      canvas.addEventListener('click', async (event) => {
+        if (!this.#isPaintMode()) {
+          return; // Not in paint mode
+        }
+
+        console.log(`🖱️ [HOVER] Canvas click detected in paint mode`);
+        
+        const coords = this.#getCanvasCoordinatesFromMouseEvent(event);
+        if (coords) {
+          const { tileX, tileY, pixelX, pixelY } = coords;
+          await this.#performAutoColorPicking([tileX.toString(), tileY.toString()], [pixelX.toString(), pixelY.toString()]);
+        }
+      });
+
+      this.isHoverListenerSetup = true;
+      console.log(`🖱️ [HOVER] Hover detection setup complete`);
+
+    } catch (error) {
+      console.error('🖱️ [HOVER] Failed to setup hover detection:', error);
+    }
+  }
+
+  /** Checks if the user is currently in paint mode
+   * @returns {boolean} True if in paint mode
+   * @since 1.0.0
+   */
+  #isPaintMode() {
+    // Look for indicators that paint mode is active
+    // This might need adjustment based on how the site indicates paint mode
+    
+    // Check if color palette is enabled (not disabled/grayed out)
+    const colorElements = document.querySelectorAll('[id^="color-"]');
+    const hasEnabledColors = Array.from(colorElements).some(el => !el.disabled && !el.classList.contains('opacity-50'));
+    
+    // Check if there's a selected color (has ring classes)
+    const hasSelectedColor = Array.from(colorElements).some(el => 
+      el.classList.contains('ring-primary') || el.classList.contains('ring-2')
+    );
+
+    const isPaintMode = hasEnabledColors && hasSelectedColor;
+    console.log(`🎨 [PAINT-MODE] Paint mode check: enabled=${hasEnabledColors}, selected=${hasSelectedColor}, result=${isPaintMode}`);
+    
+    return isPaintMode;
+  }
+
+  /** Gets tile and pixel coordinates from a mouse event on the canvas
+   * @param {MouseEvent} event - The mouse event
+   * @returns {Object|null} Coordinates object or null if invalid
+   * @since 1.0.0
+   */
+  #getCanvasCoordinatesFromMouseEvent(event) {
+    try {
+      // This is a simplified implementation - may need adjustment based on the site's coordinate system
+      // The exact implementation depends on how the site maps mouse coordinates to tile/pixel coordinates
+      
+      const canvas = event.target;
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      
+      // This is a placeholder - the actual coordinate conversion logic would need to be
+      // reverse engineered from the site's code to map mouse position to tile/pixel coords
+      console.log(`🖱️ [HOVER] Mouse position: (${x}, ${y}) on canvas`);
+      console.log(`🖱️ [HOVER] WARNING: Coordinate conversion not fully implemented yet`);
+      
+      // For now, return null until we can implement proper coordinate conversion
+      return null;
+      
+    } catch (error) {
+      console.error('🖱️ [HOVER] Failed to get coordinates from mouse event:', error);
+      return null;
     }
   }
 }
