@@ -188,11 +188,40 @@ export default class ApiManager {
       console.log(`🎨 [AUTO-COLOR] Looking for tile key: ${tileKey}`);
       console.log(`🎨 [AUTO-COLOR] Available template chunks:`, Object.keys(activeTemplate.chunked));
       
-      // Find the template chunk that matches this pixel
-      const templateChunkKey = Object.keys(activeTemplate.chunked).find(key => key.startsWith(tileKey));
+      // Find the template chunk that matches this pixel - try exact match first
+      let templateChunkKey = Object.keys(activeTemplate.chunked).find(key => key.startsWith(tileKey));
+      
+      // If no exact match, try nearby tiles (coordinate estimation might be slightly off)
       if (!templateChunkKey) {
-        console.log(`🎨 [AUTO-COLOR] No template data for tile ${tileKey} - skipping`);
-        return; // No template data for this tile
+        console.log(`🎨 [AUTO-COLOR] Exact tile match failed, trying nearby tiles...`);
+        
+        // Try tiles within +/-1 of the estimated coordinates
+        const nearbyTiles = [];
+        for (let deltaX = -1; deltaX <= 1; deltaX++) {
+          for (let deltaY = -1; deltaY <= 1; deltaY++) {
+            if (deltaX === 0 && deltaY === 0) continue; // Already tried exact match
+            
+            const nearbyTileX = tileX + deltaX;
+            const nearbyTileY = tileY + deltaY;
+            const nearbyTileKey = `${nearbyTileX.toString().padStart(4, '0')},${nearbyTileY.toString().padStart(4, '0')}`;
+            nearbyTiles.push(nearbyTileKey);
+          }
+        }
+        
+        console.log(`🎨 [AUTO-COLOR] Checking nearby tiles:`, nearbyTiles);
+        
+        for (const nearbyTileKey of nearbyTiles) {
+          templateChunkKey = Object.keys(activeTemplate.chunked).find(key => key.startsWith(nearbyTileKey));
+          if (templateChunkKey) {
+            console.log(`🎨 [AUTO-COLOR] ✅ Found template in nearby tile: ${nearbyTileKey}`);
+            break;
+          }
+        }
+      }
+      
+      if (!templateChunkKey) {
+        console.log(`🎨 [AUTO-COLOR] No template data for tile ${tileKey} or nearby tiles - skipping`);
+        return; // No template data for this tile or nearby
       }
       console.log(`🎨 [AUTO-COLOR] Found matching chunk: ${templateChunkKey}`);
 
