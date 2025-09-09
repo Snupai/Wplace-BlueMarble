@@ -523,17 +523,64 @@ export default class ApiManager {
   #estimateCoordinatesFromMousePosition(mouseX, mouseY, canvas) {
     console.log(`🖱️ [HOVER] Attempting coordinate estimation fallback`);
     
-    // This is a basic fallback that won't be accurate but allows testing
-    // In a real implementation, we'd need the exact coordinate transformation used by the site
+    // Try to find template coordinates from active template to help calibrate
+    const activeTemplate = this.templateManager?.templatesArray?.[0];
+    if (activeTemplate?.chunked) {
+      const templateChunks = Object.keys(activeTemplate.chunked);
+      console.log(`🖱️ [HOVER] Template chunks available:`, templateChunks);
+      
+      if (templateChunks.length > 0) {
+        // Parse the template chunk coordinates to understand the coordinate system
+        const firstChunk = templateChunks[0]; // e.g., "1068,0698,319,546"
+        const coords = firstChunk.split(',').map(Number);
+        const [templateTileX, templateTileY, templatePixelX, templatePixelY] = coords;
+        
+        console.log(`🖱️ [HOVER] Template is at tile(${templateTileX}, ${templateTileY}) pixel(${templatePixelX}, ${templatePixelY})`);
+        
+        // For testing, let's try to map mouse position to template coordinates
+        // This is still rough but should be closer to the actual template location
+        
+        // Get canvas center 
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        
+        // Calculate offset from center
+        const offsetX = mouseX - centerX;
+        const offsetY = mouseY - centerY;
+        
+        console.log(`🖱️ [HOVER] Mouse offset from canvas center: (${offsetX}, ${offsetY})`);
+        
+        // Estimate coordinates relative to template location
+        // This is still a guess but should be more accurate than before
+        const estimatedTileX = templateTileX + Math.floor(offsetX / 100); // Rough scaling
+        const estimatedTileY = templateTileY + Math.floor(offsetY / 100); // Rough scaling
+        const estimatedPixelX = templatePixelX + (offsetX % 100); // Pixel offset
+        const estimatedPixelY = templatePixelY + (offsetY % 100); // Pixel offset
+        
+        // Ensure coordinates are positive and within reasonable bounds
+        const finalTileX = Math.max(0, Math.min(9999, estimatedTileX));
+        const finalTileY = Math.max(0, Math.min(9999, estimatedTileY));
+        const finalPixelX = Math.max(0, Math.min(999, Math.abs(estimatedPixelX)));
+        const finalPixelY = Math.max(0, Math.min(999, Math.abs(estimatedPixelY)));
+        
+        console.log(`🖱️ [HOVER] ⚠️ Template-relative coordinates (EXPERIMENTAL): ${finalTileX},${finalTileY}:${finalPixelX},${finalPixelY}`);
+        
+        return {
+          tileX: finalTileX,
+          tileY: finalTileY,
+          pixelX: finalPixelX,
+          pixelY: finalPixelY
+        };
+      }
+    }
     
-    // For now, just return some test coordinates to see if the rest of the pipeline works
-    // These coordinates should be replaced with proper conversion logic
-    const estimatedTileX = Math.floor(mouseX / 10) % 1000; // Placeholder math
-    const estimatedTileY = Math.floor(mouseY / 10) % 1000; // Placeholder math
-    const estimatedPixelX = mouseX % 1000; // Placeholder math
-    const estimatedPixelY = mouseY % 1000; // Placeholder math
+    // Fallback to simple estimation if no template data
+    const estimatedTileX = Math.floor(mouseX / 10) % 1000;
+    const estimatedTileY = Math.floor(mouseY / 10) % 1000;
+    const estimatedPixelX = mouseX % 1000;
+    const estimatedPixelY = mouseY % 1000;
     
-    console.log(`🖱️ [HOVER] ⚠️ Using estimated coordinates (INACCURATE): ${estimatedTileX},${estimatedTileY}:${estimatedPixelX},${estimatedPixelY}`);
+    console.log(`🖱️ [HOVER] ⚠️ Using basic estimated coordinates (INACCURATE): ${estimatedTileX},${estimatedTileY}:${estimatedPixelX},${estimatedPixelY}`);
     
     return {
       tileX: estimatedTileX,
