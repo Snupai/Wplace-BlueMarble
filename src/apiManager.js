@@ -453,24 +453,140 @@ export default class ApiManager {
    */
   #getCanvasCoordinatesFromMouseEvent(event) {
     try {
-      // This is a simplified implementation - may need adjustment based on the site's coordinate system
-      // The exact implementation depends on how the site maps mouse coordinates to tile/pixel coordinates
-      
       const canvas = event.target;
       const rect = canvas.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
       
-      // This is a placeholder - the actual coordinate conversion logic would need to be
-      // reverse engineered from the site's code to map mouse position to tile/pixel coords
-      console.log(`🖱️ [HOVER] Mouse position: (${x}, ${y}) on canvas`);
-      console.log(`🖱️ [HOVER] WARNING: Coordinate conversion not fully implemented yet`);
+      console.log(`🖱️ [HOVER] Mouse position: (${mouseX}, ${mouseY}) on canvas`);
       
-      // For now, return null until we can implement proper coordinate conversion
+      // Try to access the map instance to get the coordinate conversion
+      // MapLibre GL JS maps are usually accessible via a global variable or canvas property
+      let map = null;
+      
+      // Common ways to access the map instance:
+      if (window.map) {
+        map = window.map;
+      } else if (canvas._map) {
+        map = canvas._map;
+      } else if (canvas.map) {
+        map = canvas.map;
+      } else {
+        // Try to find map instance in common global variables
+        const possibleMapKeys = ['maplibregl', 'mapboxgl', 'leaflet', 'map', 'mapInstance'];
+        for (const key of possibleMapKeys) {
+          if (window[key] && typeof window[key].unproject === 'function') {
+            map = window[key];
+            break;
+          }
+        }
+      }
+      
+      if (!map || typeof map.unproject !== 'function') {
+        console.log(`🖱️ [HOVER] ❌ Map instance not found or unproject method unavailable`);
+        console.log(`🖱️ [HOVER] Available window properties:`, Object.keys(window).filter(k => k.includes('map')));
+        
+        // Fallback: Try to estimate coordinates based on known zoom/center if available
+        return this.#estimateCoordinatesFromMousePosition(mouseX, mouseY, canvas);
+      }
+      
+      console.log(`🖱️ [HOVER] ✅ Found map instance:`, map);
+      
+      // Convert mouse position to map coordinates using MapLibre/Mapbox unproject
+      const lngLat = map.unproject([mouseX, mouseY]);
+      console.log(`🖱️ [HOVER] Map coordinates: lng=${lngLat.lng}, lat=${lngLat.lat}`);
+      
+      // Convert lng/lat to tile/pixel coordinates
+      // This depends on the site's coordinate system - typically uses a custom projection
+      const coords = this.#convertMapCoordsToTilePixel(lngLat.lng, lngLat.lat, map);
+      
+      if (coords) {
+        console.log(`🖱️ [HOVER] ✅ Converted to tile/pixel: ${coords.tileX},${coords.tileY}:${coords.pixelX},${coords.pixelY}`);
+        return coords;
+      }
+      
       return null;
       
     } catch (error) {
       console.error('🖱️ [HOVER] Failed to get coordinates from mouse event:', error);
+      return null;
+    }
+  }
+
+  /** Estimates coordinates from mouse position when map instance is not available
+   * @param {number} mouseX - Mouse X position on canvas
+   * @param {number} mouseY - Mouse Y position on canvas  
+   * @param {HTMLCanvasElement} canvas - The canvas element
+   * @returns {Object|null} Estimated coordinates or null
+   * @since 1.0.0
+   */
+  #estimateCoordinatesFromMousePosition(mouseX, mouseY, canvas) {
+    console.log(`🖱️ [HOVER] Attempting coordinate estimation fallback`);
+    
+    // This is a basic fallback that won't be accurate but allows testing
+    // In a real implementation, we'd need the exact coordinate transformation used by the site
+    
+    // For now, just return some test coordinates to see if the rest of the pipeline works
+    // These coordinates should be replaced with proper conversion logic
+    const estimatedTileX = Math.floor(mouseX / 10) % 1000; // Placeholder math
+    const estimatedTileY = Math.floor(mouseY / 10) % 1000; // Placeholder math
+    const estimatedPixelX = mouseX % 1000; // Placeholder math
+    const estimatedPixelY = mouseY % 1000; // Placeholder math
+    
+    console.log(`🖱️ [HOVER] ⚠️ Using estimated coordinates (INACCURATE): ${estimatedTileX},${estimatedTileY}:${estimatedPixelX},${estimatedPixelY}`);
+    
+    return {
+      tileX: estimatedTileX,
+      tileY: estimatedTileY,
+      pixelX: estimatedPixelX,
+      pixelY: estimatedPixelY
+    };
+  }
+
+  /** Converts map lng/lat coordinates to tile/pixel coordinates
+   * @param {number} lng - Longitude
+   * @param {number} lat - Latitude
+   * @param {Object} map - Map instance
+   * @returns {Object|null} Tile/pixel coordinates or null
+   * @since 1.0.0
+   */
+  #convertMapCoordsToTilePixel(lng, lat, map) {
+    try {
+      // This conversion depends on the site's specific coordinate system
+      // Most pixel art sites use a custom projection where each pixel maps to specific coordinates
+      
+      // Get current zoom level for scaling
+      const zoom = map.getZoom();
+      console.log(`🖱️ [HOVER] Current zoom level: ${zoom}`);
+      
+      // Site-specific coordinate conversion logic would go here
+      // For now, provide a basic implementation that may need adjustment
+      
+      // Assuming the site uses a simple coordinate system where:
+      // - Each tile is 1000x1000 pixels
+      // - Coordinates map directly to pixel positions
+      
+      // This is a placeholder - needs site-specific implementation
+      const worldX = lng * 1000000; // Scale factor needs adjustment
+      const worldY = lat * 1000000; // Scale factor needs adjustment
+      
+      const tileX = Math.floor(worldX / 1000);
+      const tileY = Math.floor(worldY / 1000);  
+      const pixelX = Math.floor(worldX % 1000);
+      const pixelY = Math.floor(worldY % 1000);
+      
+      console.log(`🖱️ [HOVER] ⚠️ Using basic coordinate conversion (may be inaccurate)`);
+      console.log(`🖱️ [HOVER] World coords: (${worldX}, ${worldY})`);
+      
+      return {
+        tileX: Math.abs(tileX),
+        tileY: Math.abs(tileY),
+        pixelX: Math.abs(pixelX),
+        pixelY: Math.abs(pixelY)
+      };
+      
+    } catch (error) {
+      console.error('🖱️ [HOVER] Failed to convert map coordinates:', error);
       return null;
     }
   }
