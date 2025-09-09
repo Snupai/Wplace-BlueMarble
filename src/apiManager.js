@@ -157,14 +157,20 @@ export default class ApiManager {
    * @since 1.0.0
    */
   async #performAutoColorPicking(coordsTile, coordsPixel) {
+    console.log(`🎨 [AUTO-COLOR] Starting auto color picking for coords:`, { coordsTile, coordsPixel });
+    
     try {
       // Check if we have active templates
       if (!this.templateManager?.templatesArray?.length) {
+        console.log(`🎨 [AUTO-COLOR] No templates active - skipping`);
         return; // No templates active, nothing to pick
       }
 
       const activeTemplate = this.templateManager.templatesArray[0];
+      console.log(`🎨 [AUTO-COLOR] Active template:`, activeTemplate);
+      
       if (!activeTemplate?.chunked) {
+        console.log(`🎨 [AUTO-COLOR] No chunked template data - skipping`);
         return; // No template data available
       }
 
@@ -173,31 +179,40 @@ export default class ApiManager {
       const tileY = parseInt(coordsTile[1]);  
       const pixelX = parseInt(coordsPixel[0]);
       const pixelY = parseInt(coordsPixel[1]);
+      console.log(`🎨 [AUTO-COLOR] Parsed coordinates: tile(${tileX}, ${tileY}) pixel(${pixelX}, ${pixelY})`);
 
       // Format tile coordinates for template lookup
       const tileKey = `${tileX.toString().padStart(4, '0')},${tileY.toString().padStart(4, '0')}`;
+      console.log(`🎨 [AUTO-COLOR] Looking for tile key: ${tileKey}`);
+      console.log(`🎨 [AUTO-COLOR] Available template chunks:`, Object.keys(activeTemplate.chunked));
       
       // Find the template chunk that matches this pixel
       const templateChunkKey = Object.keys(activeTemplate.chunked).find(key => key.startsWith(tileKey));
       if (!templateChunkKey) {
+        console.log(`🎨 [AUTO-COLOR] No template data for tile ${tileKey} - skipping`);
         return; // No template data for this tile
       }
+      console.log(`🎨 [AUTO-COLOR] Found matching chunk: ${templateChunkKey}`);
 
       // Get the template bitmap for this chunk
       const templateBitmap = activeTemplate.chunked[templateChunkKey];
       if (!templateBitmap) {
+        console.log(`🎨 [AUTO-COLOR] Template bitmap is null - skipping`);
         return;
       }
+      console.log(`🎨 [AUTO-COLOR] Template bitmap size: ${templateBitmap.width}x${templateBitmap.height}`);
 
       // Extract the pixel coordinates within the chunk
       const chunkCoords = templateChunkKey.split(',');
       const chunkPixelX = parseInt(chunkCoords[2]);
       const chunkPixelY = parseInt(chunkCoords[3]);
+      console.log(`🎨 [AUTO-COLOR] Chunk coordinates: pixel(${chunkPixelX}, ${chunkPixelY})`);
       
       // Calculate the pixel position within the template bitmap
       const drawMult = this.templateManager.drawMult || 3;
       const localX = (pixelX - chunkPixelX) * drawMult + 1; // +1 to get center pixel
       const localY = (pixelY - chunkPixelY) * drawMult + 1; // +1 to get center pixel
+      console.log(`🎨 [AUTO-COLOR] Local coordinates in bitmap: (${localX}, ${localY}) with drawMult=${drawMult}`);
 
       // Create a canvas to read the pixel data
       const tempCanvas = new OffscreenCanvas(templateBitmap.width, templateBitmap.height);
@@ -207,20 +222,24 @@ export default class ApiManager {
       
       // Check if the coordinates are within bounds
       if (localX < 0 || localX >= templateBitmap.width || localY < 0 || localY >= templateBitmap.height) {
+        console.log(`🎨 [AUTO-COLOR] Coordinates out of bounds: (${localX}, ${localY}) vs size (${templateBitmap.width}, ${templateBitmap.height}) - skipping`);
         return;
       }
 
       // Get the pixel data
       const imageData = tempCtx.getImageData(localX, localY, 1, 1);
       const [r, g, b, a] = imageData.data;
+      console.log(`🎨 [AUTO-COLOR] Template pixel color: rgba(${r}, ${g}, ${b}, ${a})`);
 
       // Skip transparent pixels
       if (a < 64) {
+        console.log(`🎨 [AUTO-COLOR] Transparent pixel (alpha=${a}) - skipping`);
         return;
       }
 
       // Skip transparent template color (deface sentinel)
       if (r === 222 && g === 250 && b === 206) {
+        console.log(`🎨 [AUTO-COLOR] Deface sentinel color - skipping`);
         return;
       }
 
@@ -228,15 +247,20 @@ export default class ApiManager {
       const targetColor = colorpalette.find(color => 
         color.rgb[0] === r && color.rgb[1] === g && color.rgb[2] === b
       );
+      console.log(`🎨 [AUTO-COLOR] Looking for color rgb(${r}, ${g}, ${b}) in palette...`);
 
       if (targetColor) {
+        console.log(`🎨 [AUTO-COLOR] Found matching color: #${targetColor.id} (${targetColor.name})`);
         // Auto-select the color by simulating a click on the color palette
         this.#selectColor(targetColor.id);
-        console.log(`Auto-picked color #${targetColor.id} (${targetColor.name}) for pixel at ${tileX},${tileY}:${pixelX},${pixelY}`);
+        console.log(`🎨 [AUTO-COLOR] ✅ Auto-picked color #${targetColor.id} (${targetColor.name}) for pixel at ${tileX},${tileY}:${pixelX},${pixelY}`);
+      } else {
+        console.log(`🎨 [AUTO-COLOR] ❌ No matching color found for rgb(${r}, ${g}, ${b})`);
+        console.log(`🎨 [AUTO-COLOR] Available palette colors:`, colorpalette.map(c => `${c.id}: rgb(${c.rgb.join(', ')})`));
       }
 
     } catch (error) {
-      console.warn('Auto color picking failed:', error);
+      console.error('🎨 [AUTO-COLOR] Auto color picking failed:', error);
     }
   }
 
@@ -245,33 +269,69 @@ export default class ApiManager {
    * @since 1.0.0
    */
   #selectColor(colorId) {
+    console.log(`🎯 [COLOR-SELECT] Attempting to select color ID: ${colorId}`);
+    
     try {
       // Look for the color element by ID
       const colorElement = document.querySelector(`#color-${colorId}`);
+      console.log(`🎯 [COLOR-SELECT] Color element found:`, colorElement);
+      
       if (colorElement) {
+        console.log(`🎯 [COLOR-SELECT] Clicking color element #color-${colorId}`);
         colorElement.click();
+        
+        // Verify the click worked by checking if it has the selected classes
+        setTimeout(() => {
+          const updatedElement = document.querySelector(`#color-${colorId}`);
+          const hasRing = updatedElement?.classList.contains('ring-primary') || updatedElement?.classList.contains('ring-2');
+          console.log(`🎯 [COLOR-SELECT] Selection result for #color-${colorId}: ${hasRing ? '✅ SUCCESS' : '❌ FAILED'}`);
+          console.log(`🎯 [COLOR-SELECT] Element classes:`, updatedElement?.classList.toString());
+        }, 100);
+        
         return;
       }
 
+      console.log(`🎯 [COLOR-SELECT] Direct ID selection failed, trying fallback method`);
+
       // Fallback: look for elements with the color as background
       const colorData = colorpalette.find(c => c.id === colorId);
-      if (!colorData) return;
+      if (!colorData) {
+        console.log(`🎯 [COLOR-SELECT] Color data not found for ID ${colorId}`);
+        return;
+      }
 
       const [r, g, b] = colorData.rgb;
       const targetRgb = `rgb(${r}, ${g}, ${b})`;
+      console.log(`🎯 [COLOR-SELECT] Looking for background color: ${targetRgb}`);
       
       // Find element by background color
       const allColorElements = document.querySelectorAll('[id^="color-"]');
+      console.log(`🎯 [COLOR-SELECT] Found ${allColorElements.length} color elements to check`);
+      
       for (const element of allColorElements) {
         const bgColor = window.getComputedStyle(element).backgroundColor;
         if (bgColor === targetRgb) {
+          console.log(`🎯 [COLOR-SELECT] Found matching background color on element:`, element);
           element.click();
+          
+          // Verify the click worked
+          setTimeout(() => {
+            const hasRing = element?.classList.contains('ring-primary') || element?.classList.contains('ring-2');
+            console.log(`🎯 [COLOR-SELECT] Fallback selection result: ${hasRing ? '✅ SUCCESS' : '❌ FAILED'}`);
+          }, 100);
+          
           return;
         }
       }
 
+      console.log(`🎯 [COLOR-SELECT] ❌ No matching element found for color ${colorId}`);
+      console.log(`🎯 [COLOR-SELECT] All color elements:`, Array.from(allColorElements).map(el => ({
+        id: el.id,
+        bgColor: window.getComputedStyle(el).backgroundColor
+      })));
+
     } catch (error) {
-      console.warn('Color selection failed:', error);
+      console.error('🎯 [COLOR-SELECT] Color selection failed:', error);
     }
   }
 }
